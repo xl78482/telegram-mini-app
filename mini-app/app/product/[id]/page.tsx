@@ -1,326 +1,408 @@
-'use client'
-import { useEffect, useState } from 'react'
-import { useParams } from 'next/navigation'
-import Image from 'next/image'
-import { AppHeader } from '@/components/AppHeader'
-import { PaymentMethodTabs } from '@/components/PaymentMethodTabs'
+'use client';
+
+import { useState, useEffect } from 'react';
+import { useParams, useRouter } from 'next/navigation';
+import AppHeader from '../../../components/AppHeader';
+import BottomNav from '../../../components/BottomNav';
+import PaymentMethodTabs from '../../../components/PaymentMethodTabs';
+
+type PaymentMethod = 'BALANCE' | 'USDT' | 'OKPAY';
 
 interface Product {
-  id: number; name: string; price: string; images?: string | null
-  stock: number; description?: string | null; soldCount?: number
+  id: number;
+  name: string;
+  description?: string | null;
+  price: number;
+  stock: number;
+  sales?: number;
+  images?: string;
+}
+
+interface UserInfo {
+  balance: number;
 }
 
 export default function ProductDetailPage() {
-  const params = useParams()
-  const [product, setProduct] = useState<Product | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [qty, setQty] = useState(1)
-  const [payMethod, setPayMethod] = useState('balance')
-  const [showConfirm, setShowConfirm] = useState(false)
-  const [buying, setBuying] = useState(false)
-  const [userBalance, setUserBalance] = useState('0.00')
-  const [toast, setToast] = useState('')
-  const [error, setError] = useState('')
+  const { id } = useParams();
+  const router = useRouter();
+  const [product, setProduct] = useState<Product | null>(null);
+  const [user, setUser] = useState<UserInfo | null>(null);
+  const [quantity, setQuantity] = useState(1);
+  const [payMethod, setPayMethod] = useState<PaymentMethod>('BALANCE');
+  const [loading, setLoading] = useState(true);
+  const [showConfirm, setShowConfirm] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [toast, setToast] = useState<string | null>(null);
 
   useEffect(() => {
     Promise.all([
-      fetch(`/api/products/${params.id}`).then(r => r.json()).catch(() => null),
-      fetch('/api/user').then(r => r.json()).catch(() => null),
-    ]).then(([prod, user]) => {
-      if (prod?.id) setProduct(prod)
-      if (user?.balance) setUserBalance(user.balance)
-    }).finally(() => setLoading(false))
-  }, [params.id])
+      fetch(`/api/products/${id}`).then(r => r.json()),
+      fetch('/api/user').then(r => r.json()),
+    ]).then(([productData, userData]) => {
+      setProduct(productData?.product || productData);
+      setUser(userData?.user || userData);
+      setLoading(false);
+    }).catch(() => {
+      setError('加载失败');
+      setLoading(false);
+    });
+  }, [id]);
 
-  function showToast(msg: string) {
-    setToast(msg)
-    setTimeout(() => setToast(''), 3000)
-  }
+  let imageUrl: string | null = null;
+  try {
+    const imgs = JSON.parse(product?.images || '[]');
+    imageUrl = imgs[0] || null;
+  } catch {}
 
-  async function handleBuy() {
-    if (!product || buying) return
-    setError('')
-    if (payMethod === 'balance') {
-      const bal = Number(userBalance)
-      const need = Number(product.price) * qty
-      if (bal < need) {
-        setError('余额不足，请充值余额！')
-        return
-      }
-      setShowConfirm(true)
-      return
+  const totalPrice = product ? product.price * quantity : 0;
+  const hasEnoughBalance = (user?.balance ?? 0) >= totalPrice;
+
+  const handleBuy = () => {
+    if (payMethod === 'BALANCE' && !hasEnoughBalance) {
+      setToast('余额不足，请充値余额！');
+      setTimeout(() => setToast(null), 2500);
+      return;
     }
-    await submitOrder()
-  }
+    setShowConfirm(true);
+  };
 
-  async function submitOrder() {
-    if (!product || buying) return
-    setBuying(true)
-    setShowConfirm(false)
+  const handleConfirmPay = async () => {
+    setSubmitting(true);
     try {
       const res = await fetch('/api/orders', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ productId: product.id, quantity: qty, paymentMethod: payMethod }),
-      })
-      const data = await res.json()
-      if (res.ok && data?.id) {
-        window.location.href = `/orders/${data.id}`
-      } else {
-        showToast(data?.error || '下单失败，请重试')
-      }
-    } catch { showToast('网络错误，请重试') }
-    finally { setBuying(false) }
+        body: JSON.stringify({ productId: product?.id, quantity, paymentMethod: payMethod }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || '下单失败');
+      setShowConfirm(false);
+      router.push(`/orders/${data.order?.id || data.id}`);
+    } catch (e: unknown) {
+      setShowConfirm(false);
+      const msg = e instanceof Error ? e.message : '下单失败';
+      setToast(msg);
+      setTimeout(() => setToast(null), 2500);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div style={{ background: '#F6F6F8', minHeight: '100dvh' }}>
+        <AppHeader title="商品详情" />
+        <div style={{ padding: '20px 20px 0' }}>
+          <div className="skeleton" style={{ height: 200, borderRadius: 24, marginBottom: 16 }} />
+          <div className="skeleton" style={{ height: 24, width: '70%', marginBottom: 12 }} />
+          <div className="skeleton" style={{ height: 80, borderRadius: 20 }} />
+        </div>
+      </div>
+    );
   }
 
-  const images = product?.images ? (() => { try { return JSON.parse(product.images!) as string[] } catch { return [] } })() : []
-  const thumb = images[0] ?? null
-  const isSoldOut = product ? product.stock === 0 : false
+  if (!product) {
+    return (
+      <div style={{ background: '#F6F6F8', minHeight: '100dvh' }}>
+        <AppHeader title="商品详情" />
+        <div style={{ textAlign: 'center', padding: 60, color: '#8A9690' }}>商品不存在</div>
+      </div>
+    );
+  }
 
   return (
-    <div style={{ background: '#F6F6F8', minHeight: '100dvh' }}>
-      <AppHeader title="商品详情" showBack />
+    <div style={{ background: '#F6F6F8', minHeight: '100dvh', paddingBottom: 'calc(80px + env(safe-area-inset-bottom))' }}>
+      <AppHeader title="商品详情" onClose={() => router.back()} />
 
-      {/* Toast 提示 */}
-      {toast && (
-        <div style={{
-          position: 'fixed',
-          top: 'calc(90px + env(safe-area-inset-top))',
-          left: '50%', transform: 'translateX(-50%)',
-          background: 'rgba(16,32,26,0.88)', color: '#fff',
-          padding: '10px 22px', borderRadius: 999,
-          fontSize: 13, fontWeight: 600, zIndex: 300,
-          whiteSpace: 'nowrap', maxWidth: 280, textAlign: 'center',
-          animation: 'slideUp 0.2s ease',
-        }}>{toast}</div>
-      )}
-
-      <div style={{
-        paddingTop: 'calc(80px + env(safe-area-inset-top) + 16px)',
-        paddingBottom: 'calc(90px + env(safe-area-inset-bottom))',
-        paddingLeft: 20,
-        paddingRight: 20,
-        display: 'flex',
-        flexDirection: 'column',
-        gap: 12,
-      }}>
-        {loading ? (
-          <>
-            <div className="skeleton" style={{ height: 220, borderRadius: 24 }} />
-            <div className="skeleton" style={{ height: 120, borderRadius: 24 }} />
-            <div className="skeleton" style={{ height: 80, borderRadius: 24 }} />
-            <div className="skeleton" style={{ height: 100, borderRadius: 24 }} />
-          </>
-        ) : !product ? (
-          <div style={{ textAlign: 'center', color: '#8A9690', paddingTop: 80, fontSize: 15 }}>商品不存在</div>
-        ) : (
-          <>
-            {/* 商品大图卡片 */}
-            <div style={{ background: '#fff', borderRadius: 24, boxShadow: '0 2px 14px rgba(0,0,0,0.065)', overflow: 'hidden' }}>
-              <div style={{ width: '100%', aspectRatio: '16/9', position: 'relative', background: '#F0FAF5' }}>
-                {thumb ? (
-                  <Image src={thumb} alt={product.name} fill style={{ objectFit: 'cover' }} unoptimized />
-                ) : (
-                  <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="#B0D8C4" strokeWidth="1">
-                      <path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/>
-                      <polyline points="3.27 6.96 12 12.01 20.73 6.96"/>
-                      <line x1="12" y1="22.08" x2="12" y2="12"/>
-                    </svg>
-                  </div>
-                )}
-              </div>
-              <div style={{ padding: '16px 18px' }}>
-                <h1 style={{ fontSize: 19, fontWeight: 800, color: '#10201A' }}>{product.name}</h1>
-              </div>
+      <div style={{ padding: '20px 20px 0' }}>
+        {/* Product Image */}
+        <div
+          style={{
+            background: 'white',
+            borderRadius: 24,
+            boxShadow: '0 2px 12px rgba(16,32,26,0.07)',
+            overflow: 'hidden',
+            marginBottom: 14,
+            aspectRatio: '16/9',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          {imageUrl ? (
+            <img src={imageUrl} alt={product.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+          ) : (
+            <div
+              style={{
+                width: '100%', height: '100%',
+                background: '#F0F4F2',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 12,
+              }}
+            >
+              <svg width="56" height="56" viewBox="0 0 24 24" fill="none">
+                <rect x="3" y="5" width="18" height="14" rx="2" stroke="#32B579" strokeWidth="1.5" />
+                <circle cx="9" cy="10" r="2" stroke="#32B579" strokeWidth="1.5" />
+                <path d="M3 16L7 12L10 15L14 11L21 16" stroke="#32B579" strokeWidth="1.5" strokeLinejoin="round" />
+              </svg>
+              <span style={{ fontSize: 13, color: '#8A9690' }}>暂无商品图片</span>
             </div>
+          )}
+        </div>
 
-            {/* 价格库存 */}
-            <div style={{ background: '#fff', borderRadius: 24, boxShadow: '0 2px 14px rgba(0,0,0,0.065)', padding: '18px 18px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <div>
-                  <p style={{ fontSize: 12, color: '#8A9690', marginBottom: 4 }}>售价</p>
-                  <p style={{ fontSize: 28, fontWeight: 800, color: '#2EA66F', letterSpacing: -0.5 }}>¥{Number(product.price).toFixed(2)}</p>
-                </div>
-                <div style={{ textAlign: 'right' }}>
-                  <p style={{ fontSize: 12, color: '#8A9690', marginBottom: 4 }}>库存</p>
-                  <p style={{ fontSize: 18, fontWeight: 700, color: isSoldOut ? '#F85050' : '#10201A' }}>
-                    {isSoldOut ? '已售罄' : `${product.stock} 件`}
-                  </p>
-                  {product.soldCount !== undefined && (
-                    <p style={{ fontSize: 11, color: '#8A9690', marginTop: 2 }}>已售 {product.soldCount}</p>
-                  )}
-                </div>
-              </div>
+        {/* Name */}
+        <div style={{ fontWeight: 800, fontSize: 20, color: '#10201A', marginBottom: 14, lineHeight: 1.3 }}>
+          {product.name}
+        </div>
+
+        {/* Price & Stock */}
+        <div
+          style={{
+            background: 'white',
+            borderRadius: 20,
+            boxShadow: '0 2px 12px rgba(16,32,26,0.07)',
+            padding: '16px 18px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            marginBottom: 12,
+          }}
+        >
+          <div>
+            <div style={{ fontSize: 12, color: '#8A9690', marginBottom: 4 }}>售价</div>
+            <div style={{ fontSize: 24, fontWeight: 800, color: '#32B579' }}>¥{product.price.toFixed(2)}</div>
+          </div>
+          <div style={{ textAlign: 'right' }}>
+            <div style={{ fontSize: 12, color: '#8A9690', marginBottom: 4 }}>库存</div>
+            <div style={{ fontSize: 16, fontWeight: 700, color: '#10201A' }}>{product.stock} 件</div>
+          </div>
+          {(product.sales ?? 0) > 0 && (
+            <div style={{ textAlign: 'right' }}>
+              <div style={{ fontSize: 12, color: '#8A9690', marginBottom: 4 }}>已售</div>
+              <div style={{ fontSize: 16, fontWeight: 700, color: '#6B7C73' }}>{product.sales}</div>
             </div>
+          )}
+        </div>
 
-            {/* 购买数量 */}
-            <div style={{ background: '#fff', borderRadius: 24, boxShadow: '0 2px 14px rgba(0,0,0,0.065)', padding: '16px 18px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <span style={{ fontSize: 15, fontWeight: 600, color: '#10201A' }}>购买数量</span>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                  <button
-                    onClick={() => setQty(q => Math.max(1, q - 1))}
-                    style={{
-                      width: 36, height: 36, borderRadius: 999,
-                      background: qty <= 1 ? '#F2F2F4' : '#E8F7F0',
-                      color: qty <= 1 ? '#C0C0C0' : '#2EA66F',
-                      border: 'none', cursor: qty <= 1 ? 'default' : 'pointer',
-                      fontSize: 22, fontWeight: 300,
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      WebkitTapHighlightColor: 'transparent',
-                    }}
-                  >−</button>
-                  <span style={{ width: 44, textAlign: 'center', fontSize: 18, fontWeight: 700, color: '#10201A' }}>{qty}</span>
-                  <button
-                    onClick={() => setQty(q => Math.min(product.stock, q + 1))}
-                    disabled={qty >= product.stock}
-                    style={{
-                      width: 36, height: 36, borderRadius: 999,
-                      background: qty >= product.stock ? '#F2F2F4' : '#E8F7F0',
-                      color: qty >= product.stock ? '#C0C0C0' : '#2EA66F',
-                      border: 'none', cursor: qty >= product.stock ? 'default' : 'pointer',
-                      fontSize: 22, fontWeight: 300,
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      WebkitTapHighlightColor: 'transparent',
-                    }}
-                  >+</button>
-                </div>
-              </div>
+        {/* Quantity */}
+        <div
+          style={{
+            background: 'white',
+            borderRadius: 20,
+            boxShadow: '0 2px 12px rgba(16,32,26,0.07)',
+            padding: '14px 18px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            marginBottom: 12,
+          }}
+        >
+          <span style={{ fontWeight: 600, fontSize: 15, color: '#10201A' }}>购买数量</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+            <button
+              onClick={() => setQuantity(q => Math.max(1, q - 1))}
+              style={{
+                width: 34, height: 34, borderRadius: '50%',
+                border: '1.5px solid #ECEEF0',
+                background: 'none', cursor: 'pointer',
+                fontSize: 20, color: '#6B7C73',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}
+            >−</button>
+            <span style={{ fontSize: 18, fontWeight: 700, color: '#10201A', minWidth: 24, textAlign: 'center' }}>{quantity}</span>
+            <button
+              onClick={() => setQuantity(q => Math.min(product.stock, q + 1))}
+              style={{
+                width: 34, height: 34, borderRadius: '50%',
+                border: 'none',
+                background: '#32B579', cursor: 'pointer',
+                fontSize: 20, color: 'white',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}
+            >+</button>
+          </div>
+        </div>
+
+        {/* Service Guarantee */}
+        <div
+          style={{
+            background: 'white',
+            borderRadius: 20,
+            boxShadow: '0 2px 12px rgba(16,32,26,0.07)',
+            padding: '14px 18px',
+            marginBottom: 12,
+          }}
+        >
+          <div style={{ display: 'flex', gap: 16 }}>
+            {['🚀 自动发货', '✅ 正品保障', '🛡️ 售后无忧'].map(s => (
+              <span key={s} style={{ fontSize: 12, color: '#6B7C73', fontWeight: 500 }}>{s}</span>
+            ))}
+          </div>
+        </div>
+
+        {/* Description */}
+        {product.description && (
+          <div
+            style={{
+              background: 'white',
+              borderRadius: 20,
+              boxShadow: '0 2px 12px rgba(16,32,26,0.07)',
+              padding: '16px 18px',
+              marginBottom: 12,
+            }}
+          >
+            <div style={{ fontWeight: 700, fontSize: 15, color: '#10201A', marginBottom: 10 }}>商品说明</div>
+            <div style={{ fontSize: 14, color: '#6B7C73', lineHeight: 1.7, whiteSpace: 'pre-wrap' }}>
+              {product.description}
             </div>
+          </div>
+        )}
 
-            {/* 服务保障 */}
-            <div style={{ background: '#fff', borderRadius: 24, boxShadow: '0 2px 14px rgba(0,0,0,0.065)', padding: '14px 18px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-around' }}>
-                {['自动发货', '正品保障', '售后无忧'].map(tag => (
-                  <div key={tag} style={{ display: 'flex', alignItems: 'center', gap: 5, color: '#2EA66F' }}>
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                      <path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>
-                    </svg>
-                    <span style={{ fontSize: 12, fontWeight: 600 }}>{tag}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
+        {/* Payment Method */}
+        <div
+          style={{
+            background: 'white',
+            borderRadius: 20,
+            boxShadow: '0 2px 12px rgba(16,32,26,0.07)',
+            padding: '16px 18px',
+            marginBottom: 12,
+          }}
+        >
+          <div style={{ fontWeight: 700, fontSize: 15, color: '#10201A', marginBottom: 14 }}>支付方式</div>
+          <PaymentMethodTabs
+            value={payMethod}
+            onChange={setPayMethod}
+            balance={user?.balance}
+          />
+        </div>
 
-            {/* 商品说明 */}
-            {product.description && (
-              <div style={{ background: '#fff', borderRadius: 24, boxShadow: '0 2px 14px rgba(0,0,0,0.065)', padding: '16px 18px' }}>
-                <h3 style={{ fontSize: 15, fontWeight: 700, color: '#10201A', marginBottom: 12 }}>商品说明</h3>
-                <p style={{ fontSize: 14, color: '#6B7C73', lineHeight: 1.8, maxWidth: 'unset' }}>{product.description}</p>
-              </div>
-            )}
-
-            {/* 支付方式 */}
-            <div style={{ background: '#fff', borderRadius: 24, boxShadow: '0 2px 14px rgba(0,0,0,0.065)', padding: '16px 18px' }}>
-              <h3 style={{ fontSize: 15, fontWeight: 700, color: '#10201A', marginBottom: 14 }}>支付方式</h3>
-              <PaymentMethodTabs value={payMethod} onChange={(v) => { setPayMethod(v); setError('') }} />
-            </div>
-
-            {/* 余额不足提示 */}
-            {error && (
-              <div style={{
-                background: '#FFF3E8', borderRadius: 14,
-                padding: '12px 16px',
-                display: 'flex', alignItems: 'center', gap: 8,
-              }}>
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#E07B2A" strokeWidth="2.2">
-                  <circle cx="12" cy="12" r="10"/>
-                  <line x1="12" y1="8" x2="12" y2="12"/>
-                  <line x1="12" y1="16" x2="12.01" y2="16"/>
-                </svg>
-                <p style={{ fontSize: 13, color: '#E07B2A', fontWeight: 600 }}>{error}</p>
-              </div>
-            )}
-          </>
+        {/* Balance insufficient warning */}
+        {payMethod === 'BALANCE' && !hasEnoughBalance && (
+          <div
+            style={{
+              background: '#FFF4E5',
+              borderRadius: 14,
+              padding: '12px 16px',
+              marginBottom: 12,
+              fontSize: 13,
+              color: '#F59E0B',
+              fontWeight: 500,
+            }}
+          >
+            ⚠️ 余额不足，请充値余额！
+          </div>
         )}
       </div>
 
-      {/* 底部固定购买栏 */}
-      {product && (
-        <div style={{
-          position: 'fixed', bottom: 0, left: 0, right: 0,
-          background: 'rgba(255,255,255,0.96)',
-          backdropFilter: 'blur(12px)',
-          WebkitBackdropFilter: 'blur(12px)',
-          borderTop: '1px solid rgba(0,0,0,0.06)',
-          padding: `14px 20px calc(14px + env(safe-area-inset-bottom))`,
+      {/* Bottom Buy Bar */}
+      <div
+        style={{
+          position: 'fixed',
+          bottom: 0, left: 0, right: 0,
+          background: 'white',
+          borderTop: '1px solid #ECEEF0',
+          padding: '12px 20px',
+          paddingBottom: 'calc(12px + env(safe-area-inset-bottom))',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: 12,
           zIndex: 50,
-          maxWidth: '28rem', margin: '0 auto',
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-            <div style={{ display: 'flex', flexDirection: 'column' }}>
-              <span style={{ fontSize: 11, color: '#8A9690' }}>已选</span>
-              <span style={{ fontSize: 18, fontWeight: 800, color: '#10201A', lineHeight: 1 }}>{qty} 件</span>
-            </div>
-            <button
-              className="btn-primary"
-              onClick={handleBuy}
-              disabled={isSoldOut || buying}
-              style={{ flex: 1, height: 52, fontSize: 16 }}
-            >
-              {buying ? '下单中...' : isSoldOut ? '已售罄' : '立即购买'}
-            </button>
-          </div>
+        }}
+      >
+        <div>
+          <div style={{ fontSize: 11, color: '#8A9690' }}>已选 {quantity} 件</div>
+          <div style={{ fontSize: 18, fontWeight: 800, color: '#32B579' }}>¥{totalPrice.toFixed(2)}</div>
         </div>
-      )}
+        <button
+          onClick={handleBuy}
+          style={{
+            flex: 1,
+            maxWidth: 200,
+            padding: '14px 0',
+            borderRadius: 999,
+            background: product.stock === 0 ? '#CCDBD5' : '#32B579',
+            color: 'white',
+            fontWeight: 700,
+            fontSize: 16,
+            border: 'none',
+            cursor: product.stock === 0 ? 'not-allowed' : 'pointer',
+          }}
+          disabled={product.stock === 0}
+        >
+          {product.stock === 0 ? '已售罄' : '立即购买'}
+        </button>
+      </div>
 
-      {/* 余额支付确认弹窗 */}
-      {showConfirm && product && (
+      {/* Confirm Modal */}
+      {showConfirm && (
         <div
-          className="modal-overlay"
+          style={{
+            position: 'fixed', inset: 0,
+            background: 'rgba(0,0,0,0.45)',
+            display: 'flex', alignItems: 'flex-end',
+            zIndex: 200,
+          }}
           onClick={() => setShowConfirm(false)}
         >
-          <div className="modal-sheet" onClick={e => e.stopPropagation()}>
-            {/* 标题 */}
-            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 16 }}>
-              <div style={{
-                width: 52, height: 52, borderRadius: '50%',
-                background: '#E8F7F0',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-              }}>
-                <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#2EA66F" strokeWidth="1.8">
-                  <rect x="2" y="7" width="20" height="14" rx="2" ry="2"/>
-                  <path d="M16 21V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v16"/>
-                </svg>
-              </div>
-            </div>
-            <h3 style={{ fontSize: 18, fontWeight: 800, color: '#10201A', marginBottom: 10, textAlign: 'center' }}>确认支付</h3>
-            <p style={{ fontSize: 14, color: '#6B7C73', textAlign: 'center', marginBottom: 8, lineHeight: 1.75 }}>
-              是否使用余额支付？
-            </p>
-            <div style={{
-              background: '#F6F6F8', borderRadius: 14,
-              padding: '12px 16px', marginBottom: 24,
-            }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
-                <span style={{ fontSize: 13, color: '#8A9690' }}>当前余额</span>
-                <span style={{ fontSize: 14, fontWeight: 700, color: '#10201A' }}>¥{Number(userBalance).toFixed(2)}</span>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ fontSize: 13, color: '#8A9690' }}>本次支付</span>
-                <span style={{ fontSize: 14, fontWeight: 800, color: '#2EA66F' }}>¥{(Number(product.price) * qty).toFixed(2)}</span>
-              </div>
+          <div
+            style={{
+              background: 'white',
+              borderRadius: '28px 28px 0 0',
+              padding: '28px 24px',
+              paddingBottom: 'calc(28px + env(safe-area-inset-bottom))',
+              width: '100%',
+            }}
+            onClick={e => e.stopPropagation()}
+          >
+            <div style={{ fontWeight: 800, fontSize: 18, color: '#10201A', marginBottom: 12, textAlign: 'center' }}>确认支付</div>
+            <div style={{ fontSize: 14, color: '#6B7C73', textAlign: 'center', marginBottom: 24, lineHeight: 1.7 }}>
+              是否使用{payMethod === 'BALANCE' ? '余额' : payMethod}支付？
+              {payMethod === 'BALANCE' && (
+                <><br />当前余额 <span style={{ color: '#32B579', fontWeight: 700 }}>¥{(user?.balance ?? 0).toFixed(2)}</span><br />本次应付 <span style={{ color: '#32B579', fontWeight: 700 }}>¥{totalPrice.toFixed(2)}</span></>
+              )}
             </div>
             <div style={{ display: 'flex', gap: 12 }}>
               <button
                 onClick={() => setShowConfirm(false)}
                 style={{
-                  flex: 1, padding: '14px 0', borderRadius: 999,
-                  background: '#F2F2F4', color: '#6B7C73',
-                  border: 'none', fontSize: 15, fontWeight: 700, cursor: 'pointer',
-                  WebkitTapHighlightColor: 'transparent',
+                  flex: 1, padding: '14px', borderRadius: 999,
+                  border: '1.5px solid #ECEEF0', background: 'none',
+                  fontWeight: 600, fontSize: 15, color: '#6B7C73', cursor: 'pointer',
                 }}
               >取消支付</button>
               <button
-                onClick={submitOrder}
-                className="btn-primary"
-                style={{ flex: 1, height: 50 }}
-              >确定支付</button>
+                onClick={handleConfirmPay}
+                disabled={submitting}
+                style={{
+                  flex: 1, padding: '14px', borderRadius: 999,
+                  border: 'none', background: submitting ? '#CCDBD5' : '#32B579',
+                  fontWeight: 700, fontSize: 15, color: 'white', cursor: submitting ? 'not-allowed' : 'pointer',
+                }}
+              >{submitting ? '支付中...' : '确定支付'}</button>
             </div>
           </div>
         </div>
       )}
+
+      {/* Toast */}
+      {toast && (
+        <div
+          style={{
+            position: 'fixed', bottom: 100, left: '50%', transform: 'translateX(-50%)',
+            background: 'rgba(16,32,26,0.85)', color: 'white',
+            padding: '10px 20px', borderRadius: 999,
+            fontSize: 14, fontWeight: 500,
+            zIndex: 300, whiteSpace: 'nowrap',
+          }}
+        >
+          {toast}
+        </div>
+      )}
     </div>
-  )
+  );
 }
