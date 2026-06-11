@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { showBackButton, hideBackButton } from '../lib/telegram/webapp';
 
@@ -11,12 +11,14 @@ import { showBackButton, hideBackButton } from '../lib/telegram/webapp';
 export function useBackButton() {
   const router = useRouter();
 
-  useEffect(() => {
-    const handleBack = () => router.back();
-    showBackButton(handleBack);
+  const handleBack = useCallback(() => {
+    router.back();
+  }, [router]);
 
+  useEffect(() => {
+    showBackButton(handleBack);
     return () => {
       hideBackButton();
     };
-  }, [router]);
+  }, [handleBack]);
 }

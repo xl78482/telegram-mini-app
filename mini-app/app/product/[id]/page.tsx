@@ -30,7 +30,7 @@ export default function ProductDetailPage() {
   useEffect(() => {
     fetch(`/api/products/${params.id}`)
       .then(r => r.json())
-      .then(data => { setProduct(data); setLoading(false); })
+      .then((data: Product) => { setProduct(data); setLoading(false); })
       .catch(() => setLoading(false));
   }, [params.id]);
 
@@ -44,21 +44,22 @@ export default function ProductDetailPage() {
   };
 
   const handleBuy = async () => {
-    if (paying) return;
+    if (paying || !product) return;
     setPaying(true);
     try {
       const res = await fetch('/api/orders', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ productId: product!.id, quantity: qty }),
+        body: JSON.stringify({ productId: product.id, quantity: qty }),
       });
-      const data = await res.json();
+      const data = await res.json() as { orderId?: number; error?: string };
       if (res.ok) {
-        setPayResult(data.orderId ? data.orderId.toString() : '成功');
         closePayModal();
-        router.push(`/orders/${data.orderId ?? ''}`);
+        if (data.orderId) {
+          router.push(`/orders/${data.orderId}`);
+        }
       } else {
-        setPayResult('购买失败: ' + (data.error || '未知错误'));
+        setPayResult('购买失败: ' + (data.error ?? '未知错误'));
       }
     } catch {
       setPayResult('网络错误，请重试');
@@ -83,9 +84,11 @@ export default function ProductDetailPage() {
   );
 
   let images: string[] = [];
-  try { images = JSON.parse(product.images || '[]'); } catch {}
+  try { images = JSON.parse(product.images ?? '[]') as string[]; } catch { images = []; }
 
   const totalPrice = (product.price * qty).toFixed(2);
+  const stockTagColor = product.stock > 0 ? '#8A9690' : '#E53E3E';
+  const stockTagBg = product.stock > 0 ? '#F3F4F6' : '#FFF0F0';
 
   return (
     <div className="tg-page tg-content-top" style={{ background: '#F6F6F8' }}>
@@ -120,7 +123,6 @@ export default function ProductDetailPage() {
       {/* 商品信息卡 */}
       <div style={{ margin: '-16px 12px 0', position: 'relative', zIndex: 2 }}>
         <div style={{ background: 'white', borderRadius: 24, padding: '20px 18px', boxShadow: '0 2px 12px rgba(16,32,26,0.07)' }}>
-          {/* 分类标签 */}
           {product.category && (
             <span style={{
               fontSize: 11, fontWeight: 700,
@@ -130,7 +132,7 @@ export default function ProductDetailPage() {
               {product.category}
             </span>
           )}
-          <h1 style={{ fontSize: 20, fontWeight: 800, color: '#10201A', margin: '8px 0 8px', lineHeight: 1.3 }}>
+          <h1 style={{ fontSize: 20, fontWeight: 800, color: '#10201A', margin: '8px 0', lineHeight: 1.3 }}>
             {product.name}
           </h1>
           {product.description && (
@@ -142,12 +144,7 @@ export default function ProductDetailPage() {
             <span style={{ fontSize: 24, fontWeight: 900, color: '#32B579' }}>
               ¥{product.price.toFixed(2)}
             </span>
-            <span style={{
-              fontSize: 12, color: '#8A9690',
-              background: product.stock > 0 ? '#F3F4F6' : '#FFF0F0',
-              color: product.stock > 0 ? '#8A9690' : '#E53E3E',
-              padding: '4px 12px', borderRadius: 999,
-            }}>
+            <span style={{ fontSize: 12, background: stockTagBg, color: stockTagColor, padding: '4px 12px', borderRadius: 999 }}>
               {product.stock > 0 ? `库存 ${product.stock}` : '售罄'}
             </span>
           </div>
@@ -162,8 +159,7 @@ export default function ProductDetailPage() {
               <span style={{ fontWeight: 600, fontSize: 15, color: '#10201A' }}>购买数量</span>
               <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
                 <button
-                  onClick={() => setQty(q => Math.max(1, q - 1))
-                  }
+                  onClick={() => setQty(q => Math.max(1, q - 1))}
                   disabled={qty <= 1}
                   style={{
                     width: 36, height: 36, borderRadius: '50%',
@@ -202,7 +198,7 @@ export default function ProductDetailPage() {
           background: 'white',
           borderTop: '1px solid #ECEEF0',
           padding: '12px 16px',
-          paddingBottom: `max(16px, var(--tg-safe-area-inset-bottom, env(safe-area-inset-bottom, 16px)))`,
+          paddingBottom: 'max(16px, var(--tg-safe-area-inset-bottom, env(safe-area-inset-bottom, 16px)))',
           display: 'flex', alignItems: 'center', gap: 14,
           zIndex: 90,
         }}
@@ -246,7 +242,7 @@ export default function ProductDetailPage() {
               zIndex: 201, padding: '0 20px',
               transform: payModalVisible ? 'translateY(0)' : 'translateY(100%)',
               transition: 'transform 0.3s cubic-bezier(0.32, 0.72, 0, 1)',
-              paddingBottom: `max(24px, var(--tg-safe-area-inset-bottom, env(safe-area-inset-bottom, 24px)))`,
+              paddingBottom: 'max(24px, var(--tg-safe-area-inset-bottom, env(safe-area-inset-bottom, 24px)))',
             }}
           >
             <div style={{ display: 'flex', justifyContent: 'center', padding: '12px 0' }}>
