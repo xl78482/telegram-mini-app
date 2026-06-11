@@ -1,20 +1,32 @@
 'use client'
 import { useEffect, useState } from 'react'
-import Link from 'next/link'
 import { BottomNav } from '@/components/bottom-nav'
-import { StatusBadge } from '@/components/status-badge'
+import { AppHeader } from '@/components/AppHeader'
+import { OrderCard } from '@/components/OrderCard'
+import { EmptyState } from '@/components/EmptyState'
 import { useInitData } from '@/hooks/use-init-data'
-import { ChevronRight } from 'lucide-react'
+import Link from 'next/link'
+import { Search } from 'lucide-react'
 
 interface Order {
   id: number; orderNo: string; status: string; totalAmount: string; createdAt: string
-  items: { name: string; quantity: number }[]
+  items: { name: string; quantity: number; product?: { images?: string | null } | null }[]
 }
+
+const STATUS_FILTERS = [
+  { key: 'ALL', label: '全部' },
+  { key: 'PENDING', label: '待付款' },
+  { key: 'PROCESSING', label: '处理中' },
+  { key: 'COMPLETED', label: '已完成' },
+  { key: 'CANCELLED', label: '已取消' },
+]
 
 export default function OrdersPage() {
   const initData = useInitData()
   const [orders, setOrders] = useState<Order[]>([])
   const [loading, setLoading] = useState(true)
+  const [statusFilter, setStatusFilter] = useState('ALL')
+  const [search, setSearch] = useState('')
 
   useEffect(() => {
     if (!initData) return
@@ -24,45 +36,85 @@ export default function OrdersPage() {
       .finally(() => setLoading(false))
   }, [initData])
 
+  const filtered = orders.filter(o => {
+    const matchStatus = statusFilter === 'ALL' || o.status === statusFilter
+    const matchSearch = !search || o.orderNo.includes(search) || o.items.some(i => i.name.includes(search))
+    return matchStatus && matchSearch
+  })
+
   return (
-    <>
-      <div className="sticky top-0 z-10 bg-[#000]/80 backdrop-blur-md px-4 py-4">
-        <h1 className="text-xl font-bold">我的订单</h1>
-      </div>
-      <div className="px-4 space-y-3">
+    <div style={{ background: '#F6F6F8', minHeight: '100vh' }}>
+      <AppHeader title="我的订单" subtitle="订单中心" />
+
+      <div style={{ padding: '16px 20px', paddingBottom: 'calc(76px + env(safe-area-inset-bottom) + 16px)' }}>
+        {/* 筛选卡片 */}
+        <div style={{
+          background: '#fff', borderRadius: 24, boxShadow: '0 2px 10px rgba(0,0,0,0.05)',
+          padding: '20px 16px 16px', marginBottom: 16,
+        }}>
+          <p style={{ fontSize: 17, fontWeight: 800, color: '#10201A', marginBottom: 14 }}>我的订单</p>
+
+          {/* 状态筛选 */}
+          <div className="category-scroll" style={{ marginBottom: 14 }}>
+            {STATUS_FILTERS.map(f => (
+              <button
+                key={f.key}
+                onClick={() => setStatusFilter(f.key)}
+                style={{
+                  flexShrink: 0, padding: '7px 14px', borderRadius: 999,
+                  fontSize: 13, fontWeight: 600, border: 'none', cursor: 'pointer',
+                  background: statusFilter === f.key ? '#E8F7F0' : 'transparent',
+                  color: statusFilter === f.key ? '#2EA66F' : '#6B7C73',
+                  transition: 'all 0.15s',
+                }}
+              >
+                {f.label}
+              </button>
+            ))}
+          </div>
+
+          {/* 搜索框 */}
+          <div style={{
+            display: 'flex', alignItems: 'center', gap: 8,
+            background: '#F6F6F8', borderRadius: 999, padding: '10px 14px',
+          }}>
+            <Search size={15} color="#8A9690" />
+            <input
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              placeholder="搜索订单号 / 商品名称"
+              style={{
+                flex: 1, background: 'none', border: 'none', outline: 'none',
+                fontSize: 14, color: '#10201A',
+              }}
+            />
+          </div>
+        </div>
+
+        {/* 订单列表 */}
         {loading ? (
           [...Array(3)].map((_, i) => (
-            <div key={i} className="h-24 animate-pulse rounded-2xl bg-[#1c1c1e]" />
+            <div key={i} className="skeleton" style={{ height: 160, marginBottom: 14, borderRadius: 20 }} />
           ))
-        ) : orders.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-24 text-gray-500">
-            <span className="text-5xl mb-4">📋</span>
-            <p>暂无订单</p>
-            <Link href="/" className="mt-4 text-blue-400 text-sm">去逛逛</Link>
-          </div>
+        ) : filtered.length === 0 ? (
+          <EmptyState
+            icon="📋"
+            title="暂无订单"
+            description="您还没有相关订单"
+            action={
+              <Link href="/" style={{
+                display: 'inline-block', padding: '10px 24px', borderRadius: 999,
+                background: '#2EA66F', color: '#fff', fontSize: 14, fontWeight: 600,
+                textDecoration: 'none',
+              }}>去购物</Link>
+            }
+          />
         ) : (
-          orders.map(order => (
-            <Link key={order.id} href={`/orders/${order.id}`}
-              className="block rounded-2xl bg-[#1c1c1e] p-4 active:opacity-70">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-xs text-gray-500">#{order.orderNo}</span>
-                <StatusBadge status={order.status} />
-              </div>
-              <p className="text-sm text-gray-300 truncate">
-                {order.items.map(i => `${i.name} x${i.quantity}`).join('、')}
-              </p>
-              <div className="flex items-center justify-between mt-2">
-                <span className="text-xs text-gray-500">{new Date(order.createdAt).toLocaleDateString('zh-CN')}</span>
-                <div className="flex items-center gap-1">
-                  <span className="text-sm font-bold text-white">¥{Number(order.totalAmount).toFixed(2)}</span>
-                  <ChevronRight size={14} className="text-gray-600" />
-                </div>
-              </div>
-            </Link>
-          ))
+          filtered.map(order => <OrderCard key={order.id} order={order} />)
         )}
       </div>
+
       <BottomNav />
-    </>
+    </div>
   )
 }
