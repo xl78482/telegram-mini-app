@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { parseTelegramUser } from '@/lib/telegram'
+import { getOrCreateTelegramUser, type TelegramUserPayload } from '@/lib/telegram-user'
 import { releaseOrderLockedCards } from '@/lib/order-lock'
 
 type RouteContext = { params: Promise<{ id: string }> }
@@ -8,15 +9,19 @@ type RouteContext = { params: Promise<{ id: string }> }
 export async function POST(req: NextRequest, context: RouteContext) {
   try {
     const { id } = await context.params
-    const initData = req.headers.get('x-init-data') ?? ''
-    const tgUser = parseTelegramUser(initData)
-    if (!tgUser) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    const orderId = Number(id)
+    if (!Number.isInteger(orderId) || orderId < 1) {
+      return NextResponse.json({ error: '订单 ID 不正确' }, { status: 400 })
+    }
 
-    const user = await prisma.user.findUnique({ where: { tgId: BigInt(tgUser.id) } })
-    if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 })
+    const initData = req.headers.get('x-init-data') ?? ''
+    const tgUser = parseTelegramUser(initData) as TelegramUserPayload | null
+    if (!tgUser?.id) return NextResponse.json({ error: '未登录' }, { status: 401 })
+
+    const user = await getOrCreateTelegramUser(tgUser)
 
     const order = await prisma.order.findFirst({
-      where: { id: Number(id), userId: user.id },
+      where: { id: orderId, userId: user.id },
     })
     if (!order) return NextResponse.json({ error: '订单不存在' }, { status: 404 })
 
@@ -30,7 +35,7 @@ export async function POST(req: NextRequest, context: RouteContext) {
     await releaseOrderLockedCards(order.id, 'USER_CANCELLED')
     return NextResponse.json({ ok: true })
   } catch (e) {
-    console.error(e)
-    return NextResponse.json({ error: 'Server error' }, { status: 500 })
+    console.error('[POST /api/orders/:id/cancel]', e)
+    return NextResponse.json({ error: '取消订单失败' }, { status: 500 })
   }
 }
