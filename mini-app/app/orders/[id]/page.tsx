@@ -1,372 +1,182 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useParams, useRouter } from 'next/navigation';
-import AppHeader from '../../../components/AppHeader';
-import StatusBadge from '../../../components/StatusBadge';
-import CopyButton from '../../../components/CopyButton';
+import { useParams } from 'next/navigation';
+import { useBackButton } from '../../../hooks/use-back-button';
 
-interface CardKey {
-  id: number;
-  content: string;
-}
+const STATUS_MAP: Record<string, { label: string; bg: string; color: string; icon: string }> = {
+  PENDING:    { label: '待支付', bg: '#FFF4E5', color: '#F59E0B', icon: '⏳' },
+  PAID:       { label: '已支付', bg: '#EEF3FF', color: '#4F74E8', icon: '✅' },
+  PROCESSING: { label: '处理中', bg: '#EEF3FF', color: '#4F74E8', icon: '⚙️' },
+  COMPLETED:  { label: '已完成', bg: '#E8F7EE', color: '#2EA66F', icon: '✅' },
+  CANCELLED:  { label: '已取消', bg: '#F5F5F5', color: '#8A9690', icon: '❌' },
+};
 
-interface OrderItem {
-  id: number;
-  productName: string;
-  quantity: number;
-  price: number;
-}
-
-interface Order {
-  id: number;
-  orderNo: string;
-  status: string;
-  totalAmount: number;
-  paymentMethod?: string | null;
-  items: OrderItem[];
-  cardKeys?: CardKey[];
-  createdAt: string;
-  paidAt?: string | null;
-}
-
-function formatDate(dateStr: string) {
-  const d = new Date(dateStr);
-  return `${d.getFullYear()}年${String(d.getMonth()+1).padStart(2,'0')}月${String(d.getDate()).padStart(2,'0')}日 ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+function CopyBtn({ text }: { text: string }) {
+  const [copied, setCopied] = useState(false);
+  return (
+    <button
+      onClick={async () => {
+        try {
+          await navigator.clipboard.writeText(text);
+          setCopied(true);
+          setTimeout(() => setCopied(false), 1800);
+        } catch {}
+      }}
+      style={{
+        padding: '4px 12px', borderRadius: 999,
+        fontSize: 12, fontWeight: 600,
+        background: copied ? '#E8F7EE' : '#F3F4F6',
+        color: copied ? '#32B579' : '#6B7C73',
+        border: 'none', cursor: 'pointer',
+        transition: 'all 0.2s ease',
+      }}
+    >
+      {copied ? '已复制 ✓' : '复制'}
+    </button>
+  );
 }
 
 export default function OrderDetailPage() {
-  const { id } = useParams();
-  const router = useRouter();
-  const [order, setOrder] = useState<Order | null>(null);
+  useBackButton();
+  const params = useParams();
+  const [order, setOrder] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [cancelling, setCancelling] = useState(false);
-  const [refreshing, setRefreshing] = useState(false);
-  const [toast, setToast] = useState<string | null>(null);
 
-  const showToast = (msg: string) => {
-    setToast(msg);
-    setTimeout(() => setToast(null), 2000);
-  };
+  useEffect(() => {
+    fetch(`/api/orders/${params.id}`)
+      .then(r => r.json())
+      .then(data => { setOrder(data); setLoading(false); })
+      .catch(() => setLoading(false));
+  }, [params.id]);
 
-  const fetchOrder = async () => {
-    try {
-      const data = await fetch(`/api/orders/${id}`).then(r => r.json());
-      setOrder(data?.order || data);
-    } catch {}
-    setLoading(false);
-  };
+  if (loading) return (
+    <div className="tg-content-top" style={{ padding: '16px', background: '#F6F6F8', minHeight: '100dvh' }}>
+      <div className="skeleton" style={{ height: 80, borderRadius: 20, marginBottom: 12 }} />
+      <div className="skeleton" style={{ height: 120, borderRadius: 20, marginBottom: 12 }} />
+      <div className="skeleton" style={{ height: 160, borderRadius: 20 }} />
+    </div>
+  );
 
-  useEffect(() => { fetchOrder(); }, [id]);
+  if (!order) return (
+    <div className="tg-content-top" style={{ padding: '40px 20px', textAlign: 'center', color: '#8A9690' }}>
+      订单不存在
+    </div>
+  );
 
-  const handleCancel = async () => {
-    setCancelling(true);
-    try {
-      await fetch(`/api/orders/${id}/cancel`, { method: 'POST' });
-      await fetchOrder();
-      showToast('订单已取消');
-    } catch { showToast('取消失败'); }
-    setCancelling(false);
-  };
-
-  const handleRefresh = async () => {
-    setRefreshing(true);
-    await fetchOrder();
-    showToast('已刷新');
-    setRefreshing(false);
-  };
-
-  const allCardKeys = order?.cardKeys || [];
-  const allKeysText = allCardKeys.map(k => k.content).join('\n');
-
-  if (loading) {
-    return (
-      <div style={{ background: '#F6F6F8', minHeight: '100dvh' }}>
-        <AppHeader title="订单详情" onClose={() => router.back()} />
-        <div style={{ padding: '20px' }}>
-          {[1,2,3].map(i => <div key={i} className="skeleton" style={{ height: 100, borderRadius: 20, marginBottom: 14 }} />)}
-        </div>
-      </div>
-    );
-  }
-
-  if (!order) {
-    return (
-      <div style={{ background: '#F6F6F8', minHeight: '100dvh' }}>
-        <AppHeader title="订单详情" onClose={() => router.back()} />
-        <div style={{ textAlign: 'center', padding: 60, color: '#8A9690' }}>订单不存在</div>
-      </div>
-    );
-  }
-
-  const isUsdt = order.paymentMethod === 'USDT';
-  const isOkpay = order.paymentMethod === 'OKPAY';
-  const firstItem = order.items[0];
+  const status = STATUS_MAP[order.status] || { label: order.status, bg: '#F5F5F5', color: '#8A9690', icon: '•' };
+  const allKeys = order.items?.flatMap((it: any) => it.cardKeys || it.keys || []) ?? [];
 
   return (
-    <div style={{ background: '#F6F6F8', minHeight: '100dvh', paddingBottom: 'calc(80px + env(safe-area-inset-bottom))' }}>
-      <AppHeader title="订单详情" onClose={() => router.back()} />
+    <div
+      className="tg-content-top"
+      style={{
+        background: '#F6F6F8',
+        minHeight: '100dvh',
+        paddingBottom: `calc(80px + max(0px, var(--tg-safe-area-inset-bottom, env(safe-area-inset-bottom, 0px))))`,
+      }}
+    >
+      {/* 订单标题 */}
+      <div style={{ padding: '16px 16px 8px' }}>
+        <h2 style={{ fontSize: 20, fontWeight: 800, color: '#10201A', margin: 0 }}>订单详情</h2>
+      </div>
 
-      <div style={{ padding: '20px 20px 0' }}>
-        {/* Order Info Card */}
-        <div
-          style={{
-            background: 'white',
-            borderRadius: 24,
-            boxShadow: '0 2px 12px rgba(16,32,26,0.07)',
-            padding: '18px',
-            marginBottom: 14,
-          }}
-        >
-          {/* Status Row */}
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
-            <div>
-              <div style={{ fontSize: 12, color: '#8A9690', marginBottom: 4 }}>订单状态</div>
-              <StatusBadge status={order.status} />
-            </div>
-            <div style={{ textAlign: 'right' }}>
-              <div style={{ fontSize: 12, color: '#8A9690', marginBottom: 4 }}>订单号</div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                <span style={{ fontSize: 12, color: '#6B7C73', fontWeight: 500 }}>{order.orderNo}</span>
-                <CopyButton text={order.orderNo} label="复制" />
-              </div>
-            </div>
+      {/* 状态卡 */}
+      <div style={{ margin: '0 12px 12px' }}>
+        <div style={{
+          background: status.bg, borderRadius: 20,
+          padding: '18px', display: 'flex', alignItems: 'center', gap: 14,
+        }}>
+          <span style={{ fontSize: 32 }}>{status.icon}</span>
+          <div>
+            <div style={{ fontWeight: 800, fontSize: 16, color: status.color }}>{status.label}</div>
+            <div style={{ fontSize: 12, color: '#8A9690', marginTop: 2 }}>订单 #{order.id}</div>
           </div>
-
-          <div style={{ height: 1, background: '#F3F4F6', marginBottom: 14 }} />
-
-          {/* Product Row */}
-          <div style={{ display: 'flex', gap: 12, marginBottom: 14 }}>
-            <div
-              style={{
-                width: 56, height: 56,
-                borderRadius: 14,
-                background: '#F0F4F2',
-                flexShrink: 0,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
-            >
-              <svg width="26" height="26" viewBox="0 0 24 24" fill="none">
-                <rect x="3" y="5" width="18" height="14" rx="2" stroke="#32B579" strokeWidth="1.5" />
-                <circle cx="9" cy="10" r="2" stroke="#32B579" strokeWidth="1.5" />
-                <path d="M3 16L7 12L10 15L14 11L21 16" stroke="#32B579" strokeWidth="1.5" strokeLinejoin="round" />
-              </svg>
+          <div style={{ marginLeft: 'auto', textAlign: 'right' }}>
+            <div style={{ fontSize: 22, fontWeight: 900, color: status.color }}>
+              ¥{(order.totalAmount ?? order.total ?? 0).toFixed(2)}
             </div>
-            <div style={{ flex: 1 }}>
-              <div style={{ fontWeight: 700, fontSize: 15, color: '#10201A', marginBottom: 4 }}>
-                {firstItem?.productName || '商品'}
-              </div>
-              <div style={{ fontSize: 13, color: '#8A9690' }}>数量 ×{firstItem?.quantity ?? 1}</div>
-            </div>
-          </div>
-
-          {/* Amount */}
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
-            <span style={{ fontSize: 14, color: '#8A9690' }}>金额</span>
-            {isUsdt || isOkpay ? (
-              <span style={{ fontSize: 15, fontWeight: 700, color: '#4F74E8' }}>
-                {order.totalAmount.toFixed(2)} {isUsdt ? 'USDT' : 'OKPay'}
-              </span>
-            ) : (
-              <span style={{ fontSize: 15, fontWeight: 700, color: '#32B579' }}>
-                ¥{order.totalAmount.toFixed(2)}
-              </span>
-            )}
-          </div>
-
-          {/* Payment Method */}
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
-            <span style={{ fontSize: 14, color: '#8A9690' }}>支付方式</span>
-            <span style={{ fontSize: 14, color: '#6B7C73', fontWeight: 500 }}>
-              {order.paymentMethod === 'BALANCE' ? '余额' : order.paymentMethod || '-'}
-            </span>
-          </div>
-
-          {/* Time */}
-          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-            <span style={{ fontSize: 14, color: '#8A9690' }}>下单时间</span>
-            <span style={{ fontSize: 14, color: '#6B7C73' }}>{formatDate(order.createdAt)}</span>
           </div>
         </div>
+      </div>
 
-        {/* Card Keys */}
-        <div
-          style={{
-            background: 'white',
-            borderRadius: 24,
-            boxShadow: '0 2px 12px rgba(16,32,26,0.07)',
-            padding: '18px',
-            marginBottom: 14,
-          }}
-        >
-          <div style={{ fontWeight: 700, fontSize: 16, color: '#10201A', marginBottom: 14 }}>卡密信息</div>
-
-          {order.status === 'PENDING' || order.status === 'PAID' ? (
-            <div
-              style={{
-                background: '#F0F4F2',
-                borderRadius: 14,
-                padding: '16px',
-                textAlign: 'center',
-                color: '#8A9690',
-                fontSize: 14,
-              }}
-            >
-              <div style={{ fontSize: 24, marginBottom: 8 }}>⏳</div>
-              支付完成后自动发货
+      {/* 商品列表 */}
+      {order.items?.map((item: any, idx: number) => (
+        <div key={idx} style={{ margin: '0 12px 12px' }}>
+          <div style={{ background: 'white', borderRadius: 20, padding: '16px', boxShadow: '0 1px 6px rgba(16,32,26,0.05)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+              <span style={{ fontWeight: 700, fontSize: 15, color: '#10201A', flex: 1 }}>{item.productName}</span>
+              <span style={{ fontWeight: 700, color: '#32B579' }}>¥{item.price?.toFixed(2)} × {item.quantity}</span>
             </div>
-          ) : order.status === 'CANCELLED' || order.status === 'TIMEOUT' ? (
-            <div
-              style={{
-                background: '#F5F5F5',
-                borderRadius: 14,
-                padding: '16px',
-                textAlign: 'center',
-                color: '#8A9690',
-                fontSize: 14,
-              }}
-            >
-              <div style={{ fontSize: 24, marginBottom: 8 }}>❌</div>
-              订单已取消，无法查看卡密信息
-            </div>
-          ) : allCardKeys.length === 0 ? (
-            <div style={{ textAlign: 'center', color: '#8A9690', fontSize: 14, padding: '16px 0' }}>暂无卡密信息</div>
-          ) : (
-            <div>
-              {allCardKeys.map((key, idx) => (
-                <div
-                  key={key.id}
-                  style={{
-                    background: '#F6F6F8',
-                    borderRadius: 14,
-                    padding: '12px 14px',
-                    marginBottom: 10,
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 10,
-                  }}
-                >
-                  <span style={{ fontSize: 12, color: '#8A9690', flexShrink: 0 }}>#{idx + 1}</span>
-                  <span
-                    style={{
-                      flex: 1,
-                      fontSize: 14,
-                      color: '#10201A',
-                      fontFamily: 'monospace',
-                      wordBreak: 'break-all',
-                    }}
-                  >
-                    {key.content}
-                  </span>
-                  <CopyButton text={key.content} />
-                </div>
-              ))}
 
-              {allCardKeys.length > 1 && (
-                <div style={{ marginTop: 8 }}>
-                  <CopyButton
-                    text={allKeysText}
-                    label="复制全部卡密"
-                    style={{ width: '100%', justifyContent: 'center', padding: '12px' }}
-                  />
+            {/* 卡密列表 */}
+            {(item.cardKeys || item.keys || []).length > 0 && (
+              <div>
+                <div style={{ fontSize: 12, color: '#8A9690', marginBottom: 8 }}>卡密 / 密钥</div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {(item.cardKeys || item.keys || []).map((key: string, ki: number) => (
+                    <div
+                      key={ki}
+                      style={{
+                        background: '#F6F6F8',
+                        borderRadius: 10, padding: '10px 12px',
+                        display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10,
+                      }}
+                    >
+                      <span style={{
+                        fontSize: 13, fontFamily: 'monospace',
+                        color: '#10201A', flex: 1,
+                        wordBreak: 'break-all',
+                      }}>{key}</span>
+                      <CopyBtn text={key} />
+                    </div>
+                  ))}
                 </div>
-              )}
+              </div>
+            )}
+          </div>
+        </div>
+      ))}
+
+      {/* 时间信息 */}
+      <div style={{ margin: '0 12px 12px' }}>
+        <div style={{ background: 'white', borderRadius: 16, padding: '14px 16px', boxShadow: '0 1px 6px rgba(16,32,26,0.04)' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
+            <span style={{ fontSize: 13, color: '#8A9690' }}>创建时间</span>
+            <span style={{ fontSize: 13, color: '#10201A' }}>{new Date(order.createdAt).toLocaleString('zh-CN')}</span>
+          </div>
+          {order.updatedAt && (
+            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+              <span style={{ fontSize: 13, color: '#8A9690' }}>更新时间</span>
+              <span style={{ fontSize: 13, color: '#10201A' }}>{new Date(order.updatedAt).toLocaleString('zh-CN')}</span>
             </div>
           )}
         </div>
       </div>
 
-      {/* Bottom Action Bar */}
-      <div
-        style={{
-          position: 'fixed',
-          bottom: 0, left: 0, right: 0,
-          background: 'white',
-          borderTop: '1px solid #ECEEF0',
-          padding: '12px 20px',
-          paddingBottom: 'calc(12px + env(safe-area-inset-bottom))',
-          display: 'flex',
-          gap: 12,
-          zIndex: 50,
-        }}
-      >
-        {(order.status === 'PENDING') ? (
-          <>
-            <button
-              onClick={handleCancel}
-              disabled={cancelling}
-              style={{
-                flex: 1, padding: '14px', borderRadius: 999,
-                border: '1.5px solid #ECEEF0',
-                background: 'none', fontWeight: 600, fontSize: 15,
-                color: '#6B7C73', cursor: 'pointer',
-              }}
-            >
-              {cancelling ? '取消中...' : '取消订单'}
-            </button>
-            <button
-              onClick={handleRefresh}
-              disabled={refreshing}
-              style={{
-                flex: 1, padding: '14px', borderRadius: 999,
-                border: 'none', background: refreshing ? '#CCDBD5' : '#32B579',
-                fontWeight: 700, fontSize: 15, color: 'white', cursor: 'pointer',
-              }}
-            >
-              {refreshing ? '刷新中...' : '刷新支付状态'}
-            </button>
-          </>
-        ) : order.status === 'COMPLETED' ? (
-          <>
-            {allCardKeys.length > 0 && (
-              <CopyButton
-                text={allKeysText}
-                label="复制卡密"
-                style={{
-                  flex: 1, padding: '14px 0',
-                  justifyContent: 'center',
-                  fontSize: 15,
-                }}
-              />
-            )}
-            <button
-              style={{
-                flex: 1, padding: '14px', borderRadius: 999,
-                border: 'none', background: '#32B579',
-                fontWeight: 700, fontSize: 15, color: 'white', cursor: 'pointer',
-              }}
-            >
-              联系客服
-            </button>
-          </>
-        ) : (
-          <button
-            onClick={() => router.back()}
-            style={{
-              flex: 1, padding: '14px', borderRadius: 999,
-              border: 'none', background: '#32B579',
-              fontWeight: 700, fontSize: 15, color: 'white', cursor: 'pointer',
-            }}
-          >
-            返回
-          </button>
-        )}
-      </div>
-
-      {/* Toast */}
-      {toast && (
+      {/* 底部复制全部卡密按钮 */}
+      {allKeys.length > 0 && (
         <div
           style={{
-            position: 'fixed', bottom: 100, left: '50%', transform: 'translateX(-50%)',
-            background: 'rgba(16,32,26,0.85)', color: 'white',
-            padding: '10px 20px', borderRadius: 999,
-            fontSize: 14, fontWeight: 500,
-            zIndex: 300, whiteSpace: 'nowrap',
+            position: 'fixed', bottom: 0, left: 0, right: 0,
+            background: 'white', borderTop: '1px solid #ECEEF0',
+            padding: `12px 16px max(16px, var(--tg-safe-area-inset-bottom, env(safe-area-inset-bottom, 16px)))`,
+            zIndex: 90,
           }}
         >
-          {toast}
+          <button
+            onClick={() => {
+              navigator.clipboard.writeText(allKeys.join('\n')).catch(() => {});
+            }}
+            style={{
+              width: '100%', padding: '14px',
+              borderRadius: 999, border: 'none',
+              background: '#32B579', color: 'white',
+              fontWeight: 700, fontSize: 16, cursor: 'pointer',
+            }}
+          >
+            一键复制所有卡密
+          </button>
         </div>
       )}
     </div>
