@@ -3,7 +3,7 @@ import { syncProductStock } from './stock'
 
 /**
  * 释放订单锁定的卡密，并将订单改为取消状态
- * 只处理 status = PENDING 的订单
+ * 只处理 status = PENDING 的订单（幂等）
  */
 export async function releaseOrderLockedCards(
   orderId: number,
@@ -11,6 +11,7 @@ export async function releaseOrderLockedCards(
 ): Promise<void> {
   await prisma.$transaction(async tx => {
     const order = await tx.order.findUnique({ where: { id: orderId } })
+    // 幂等：不是 PENDING 则跳过
     if (!order || order.status !== 'PENDING') return
 
     // 查找该订单锁定的所有卡密
@@ -35,10 +36,14 @@ export async function releaseOrderLockedCards(
       },
     })
 
-    // 同步库存（事务外执行，事务内已更新完毕）
-    const affectedPairs = [...new Map(locked.map(c => [`${c.productId}-${c.specId ?? ''}`, c])).values()]
+    // 在事务内用 tx 同步库存，保证一致性
+    const affectedPairs = [
+      ...new Map(
+        locked.map(c => [`${c.productId}-${c.specId ?? ''}`, c])
+      ).values(),
+    ]
     for (const c of affectedPairs) {
-      await syncProductStock(c.productId, c.specId)
+      await syncProductStock(c.productId, c.specId, tx)
     }
   })
 }

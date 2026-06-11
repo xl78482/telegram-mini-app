@@ -239,7 +239,7 @@ export default function ProductDetailPage() {
         </div>
       </div>
 
-      {/* 购买按钒 */}
+      {/* 购买按钮 */}
       <div style={{
         position: 'fixed', bottom: 0, left: 0, right: 0,
         background: 'white', borderTop: '1px solid #ECEEF0',
@@ -259,7 +259,7 @@ export default function ProductDetailPage() {
           }}
         >
           {!canBuy ? '库存不足' : (
-            hasSpecs && !selectedSpec ? '请选择规格' : `។购买 ¥${(currentPrice * qty).toFixed(2)}`
+            hasSpecs && !selectedSpec ? '请选择规格' : `立即购买 ¥${(currentPrice * qty).toFixed(2)}`
           )}
         </button>
       </div>
@@ -370,7 +370,7 @@ export default function ProductDetailPage() {
                 cursor: paying ? 'not-allowed' : 'pointer',
               }}
             >
-              {paying ? '提交中...' : `确认购买`}
+              {paying ? '提交中...' : '确认购买'}
             </button>
           </div>
         </div>

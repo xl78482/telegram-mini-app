@@ -1,21 +1,26 @@
 import { prisma } from './prisma'
+import type { PrismaClient } from '@prisma/client'
+import type { Prisma } from '@prisma/client'
+
+type DbClient = PrismaClient | Prisma.TransactionClient
 
 export async function syncProductStock(
   productId: number,
-  specId?: number | null
+  specId?: number | null,
+  db: DbClient = prisma
 ): Promise<void> {
-  const productAvailable = await prisma.cardSecret.count({
+  const productAvailable = await db.cardSecret.count({
     where: { productId, status: 'AVAILABLE' },
   })
-  await prisma.product.update({
+  await db.product.update({
     where: { id: productId },
     data: { stock: productAvailable },
   })
   if (specId) {
-    const specAvailable = await prisma.cardSecret.count({
+    const specAvailable = await db.cardSecret.count({
       where: { specId, status: 'AVAILABLE' },
     })
-    await prisma.productSpec.update({
+    await db.productSpec.update({
       where: { id: specId },
       data: { stock: specAvailable },
     })
