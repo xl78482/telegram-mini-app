@@ -18,10 +18,10 @@ export async function GET(req: NextRequest) {
   try {
     const initData = req.headers.get('x-init-data') ?? ''
     const tgUser = parseTelegramUser(initData)
-    if (!tgUser) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    if (!tgUser) return NextResponse.json({ error: '未登录' }, { status: 401 })
 
     const user = await prisma.user.findUnique({ where: { tgId: BigInt(tgUser.id) } })
-    if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 })
+    if (!user) return NextResponse.json({ error: '用户不存在' }, { status: 404 })
 
     // 先过期检查
     await expirePendingOrders()
@@ -56,8 +56,8 @@ export async function GET(req: NextRequest) {
       })),
     })))
   } catch (e) {
-    console.error(e)
-    return NextResponse.json({ error: 'Server error' }, { status: 500 })
+    console.error('[GET /api/orders]', e)
+    return NextResponse.json({ error: '订单列表获取失败' }, { status: 500 })
   }
 }
 
@@ -65,7 +65,7 @@ export async function POST(req: NextRequest) {
   try {
     const initData = req.headers.get('x-init-data') ?? ''
     const tgUser = parseTelegramUser(initData)
-    if (!tgUser) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    if (!tgUser) return NextResponse.json({ error: '未登录' }, { status: 401 })
 
     const body = await req.json() as {
       items: { productId: number; specId?: number | null; quantity: number }[]
@@ -82,15 +82,26 @@ export async function POST(req: NextRequest) {
     }
 
     const item = body.items[0]
+    const productId = Number(item.productId)
     const quantity = Number(item.quantity)
-    if (!quantity || quantity < 1) return NextResponse.json({ error: '数量必须大于 0' }, { status: 400 })
+    const requestedSpecId = item.specId == null ? null : Number(item.specId)
+
+    if (!Number.isInteger(productId) || productId < 1) {
+      return NextResponse.json({ error: '商品 ID 不正确' }, { status: 400 })
+    }
+    if (!Number.isInteger(quantity) || quantity < 1) {
+      return NextResponse.json({ error: '数量必须为大于 0 的整数' }, { status: 400 })
+    }
+    if (requestedSpecId !== null && (!Number.isInteger(requestedSpecId) || requestedSpecId < 1)) {
+      return NextResponse.json({ error: '规格 ID 不正确' }, { status: 400 })
+    }
 
     const user = await prisma.user.findUnique({ where: { tgId: BigInt(tgUser.id) } })
-    if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 })
+    if (!user) return NextResponse.json({ error: '用户不存在' }, { status: 404 })
 
     // 查商品
     const product = await prisma.product.findUnique({
-      where: { id: item.productId },
+      where: { id: productId },
       include: { specs: { where: { isActive: true } } },
     })
     if (!product || !product.isActive) {
@@ -100,24 +111,25 @@ export async function POST(req: NextRequest) {
     const hasSpecs = product.specs.length > 0
     let specId: number | null = null
     let specName: string | null = null
-    let unitPrice: number
+    let unitPrice: Prisma.Decimal
 
     if (hasSpecs) {
-      if (!item.specId) {
+      if (requestedSpecId === null) {
         return NextResponse.json({ error: '该商品有规格，必须选择规格' }, { status: 400 })
       }
-      const spec = product.specs.find(s => s.id === item.specId)
+      const spec = product.specs.find(s => s.id === requestedSpecId)
       if (!spec) {
         return NextResponse.json({ error: '规格不存在或已停用' }, { status: 400 })
       }
       specId = spec.id
       specName = spec.name
-      unitPrice = Number(spec.price)
+      unitPrice = spec.price
     } else {
-      unitPrice = Number(product.price)
+      specId = null
+      unitPrice = product.price
     }
 
-    const totalAmount = unitPrice * quantity
+    const totalAmount = unitPrice.mul(quantity)
 
     // 读取过期时间配置
     let expireMinutes = 15
@@ -130,14 +142,15 @@ export async function POST(req: NextRequest) {
 
     // 事务：创建订单 + 锁定卡密
     const order = await prisma.$transaction(async tx => {
-      // 1. 查可用卡密
+      // 1. 查可用卡密：specId 必须精确匹配。无规格商品只允许锁定 specId = null 的卡密。
       const availableCards = await tx.cardSecret.findMany({
         where: {
-          productId: item.productId,
-          specId: specId ?? undefined,
+          productId,
+          specId,
           status: 'AVAILABLE',
         },
         select: { id: true },
+        orderBy: { id: 'asc' },
         take: quantity,
       })
       if (availableCards.length < quantity) {
@@ -157,7 +170,7 @@ export async function POST(req: NextRequest) {
           expiresAt,
           items: {
             create: [{
-              productId: item.productId,
+              productId,
               specId,
               specName,
               name: product.name,
@@ -183,7 +196,7 @@ export async function POST(req: NextRequest) {
     })
 
     // 同步库存（事务外）
-    await syncProductStock(item.productId, specId)
+    await syncProductStock(productId, specId)
 
     return NextResponse.json({
       id: order.id,
@@ -195,8 +208,8 @@ export async function POST(req: NextRequest) {
       expiresAt: order.expiresAt,
     }, { status: 201 })
   } catch (e: unknown) {
-    const msg = e instanceof Error ? e.message : 'Server error'
-    console.error(e)
+    const msg = e instanceof Error ? e.message : '下单失败'
+    console.error('[POST /api/orders]', e)
     return NextResponse.json({ error: msg }, { status: 400 })
   }
 }
