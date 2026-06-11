@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { initTelegramWebApp, isTelegramEnv, getSafeAreaInsets } from '../lib/telegram/webapp';
 
 interface TelegramState {
@@ -39,17 +39,22 @@ export function useTelegramWebApp(): TelegramState {
       setState(prev => ({ ...prev, viewportHeight: newVh }));
     };
 
+    // 监听安全区变化（独立引用，确保能正确移除）
+    const handleSafeArea = () => {
+      setState(prev => ({ ...prev, safeArea: getSafeAreaInsets() }));
+    };
+
     tg?.onEvent?.('viewportChanged', handleViewport);
     tg?.onEvent?.('fullscreenChanged', handleViewport);
-    tg?.onEvent?.('safeAreaChanged', () => {
-      setState(prev => ({ ...prev, safeArea: getSafeAreaInsets() }));
-    });
-    tg?.onEvent?.('contentSafeAreaChanged', () => {
-      setState(prev => ({ ...prev, safeArea: getSafeAreaInsets() }));
-    });
+    tg?.onEvent?.('safeAreaChanged', handleSafeArea);
+    tg?.onEvent?.('contentSafeAreaChanged', handleSafeArea);
 
+    // 清理所有已注册的事件，防止内存泄漏
     return () => {
       tg?.offEvent?.('viewportChanged', handleViewport);
+      tg?.offEvent?.('fullscreenChanged', handleViewport);
+      tg?.offEvent?.('safeAreaChanged', handleSafeArea);
+      tg?.offEvent?.('contentSafeAreaChanged', handleSafeArea);
     };
   }, []);
 
