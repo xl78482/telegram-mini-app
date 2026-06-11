@@ -1,14 +1,7 @@
-/**
- * POST /api/orders/[id]/cancel
- * 取消订单占位接口
- * - 校验 x-init-data
- * - 只允许取消自己的订单
- * - 只允许取消 PENDING 状态的订单
- * - 发卡系统上线后在此添加卡密释放逻辑
- */
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { parseTelegramUser } from '@/lib/telegram'
+import { releaseOrderLockedCards } from '@/lib/order-lock'
 
 type RouteContext = { params: Promise<{ id: string }> }
 
@@ -25,18 +18,16 @@ export async function POST(req: NextRequest, context: RouteContext) {
     const order = await prisma.order.findFirst({
       where: { id: Number(id), userId: user.id },
     })
-    if (!order) return NextResponse.json({ error: 'Order not found' }, { status: 404 })
+    if (!order) return NextResponse.json({ error: '订单不存在' }, { status: 404 })
+
     if (order.status !== 'PENDING') {
-      return NextResponse.json({ error: '只能取消待支付的订单' }, { status: 400 })
+      const reason = order.status === 'CANCELLED'
+        ? '订单已取消'
+        : '订单已支付，不能取消'
+      return NextResponse.json({ error: reason }, { status: 400 })
     }
 
-    await prisma.order.update({
-      where: { id: order.id },
-      data: { status: 'CANCELLED' },
-    })
-
-    // TODO: 发卡系统上线后，在此添加卡密释放逻辑
-
+    await releaseOrderLockedCards(order.id, 'USER_CANCELLED')
     return NextResponse.json({ ok: true })
   } catch (e) {
     console.error(e)

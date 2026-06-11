@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { parseTelegramUser } from '@/lib/telegram'
+import { expirePendingOrders } from '@/lib/order-lock'
 
 type RouteContext = { params: Promise<{ id: string }> }
 
@@ -14,29 +15,36 @@ export async function GET(req: NextRequest, context: RouteContext) {
     const user = await prisma.user.findUnique({ where: { tgId: BigInt(tgUser.id) } })
     if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 })
 
+    // 先触发过期检查
+    await expirePendingOrders()
+
     const order = await prisma.order.findFirst({
       where: { id: Number(id), userId: user.id },
-      include: { items: { include: { product: true } } },
+      include: { items: true },
     })
     if (!order) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
     return NextResponse.json({
-      ...order,
+      id: order.id,
+      orderNo: order.orderNo,
+      status: order.status,
+      payStatus: order.payStatus,
+      paymentMethod: order.paymentMethod,
       totalAmount: order.totalAmount.toString(),
+      expiresAt: order.expiresAt,
+      cancelReason: order.cancelReason,
+      createdAt: order.createdAt,
+      updatedAt: order.updatedAt,
       items: order.items.map(i => ({
         id: i.id,
         productId: i.productId,
-        // 同时返回 productName 和 name
-        productName: i.name,
+        specId: i.specId,
         name: i.name,
+        productName: i.name,
+        specName: i.specName,
         quantity: i.quantity,
         price: i.price.toString(),
-        // 占位：发卡系统上线前返回空数组
         cardKeys: [],
-        product: i.product ? {
-          ...i.product,
-          price: i.product.price.toString(),
-        } : null,
       })),
     })
   } catch (e) {

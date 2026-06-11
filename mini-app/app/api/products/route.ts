@@ -6,9 +6,20 @@ export async function GET() {
     const products = await prisma.product.findMany({
       where: { isActive: true },
       orderBy: { sortOrder: 'asc' },
+      include: {
+        specs: {
+          where: { isActive: true },
+          orderBy: { sortOrder: 'asc' },
+          select: { id: true, productId: true, name: true, price: true, stock: true, sortOrder: true, isActive: true },
+        },
+      },
     })
     return NextResponse.json(
-      products.map(p => ({ ...p, price: p.price.toString() }))
+      products.map(p => ({
+        ...p,
+        price: p.price.toString(),
+        specs: p.specs.map(s => ({ ...s, price: s.price.toString() })),
+      }))
     )
   } catch (e) {
     console.error(e)
