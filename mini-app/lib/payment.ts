@@ -94,16 +94,19 @@ export async function processBalancePayment(
     where: { id: userId },
     select: { balance: true },
   })
+  if (!userAfter) {
+    throw new Error('用户余额查询异常')
+  }
 
-  const balanceBefore = Number(userBefore.balance)
-  const balanceAfter = userAfter ? Number(userAfter.balance) : 0
+  const balanceBefore = userBefore.balance
+  const balanceAfter = userAfter.balance
 
-  // === 第四步：写入余额流水（负数金额） ===
+  // === 第四步：写入余额流水（负数金额，使用 Decimal.mul(-1) 避免 JS Number） ===
   await tx.balanceLog.create({
     data: {
       userId,
       type: 'PAY_ORDER',
-      amount: -amountDecimal,
+      amount: amountDecimal.mul(-1),
       balanceBefore,
       balanceAfter,
       orderId,
