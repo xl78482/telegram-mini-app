@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { hapticSelection, hapticImpact } from '../lib/telegram/webapp';
 
 interface RechargeSheetProps {
   isOpen: boolean;
@@ -22,10 +23,13 @@ export default function RechargeSheet({ isOpen, onClose, currentBalance = 0 }: R
       setMounted(true);
       setTimeout(() => setVisible(true), 10);
       fetchRate();
+      document.body.style.overflow = 'hidden';
     } else {
       setVisible(false);
       setTimeout(() => setMounted(false), 320);
+      document.body.style.overflow = '';
     }
+    return () => { document.body.style.overflow = ''; };
   }, [isOpen]);
 
   const fetchRate = async () => {
@@ -124,7 +128,8 @@ export default function RechargeSheet({ isOpen, onClose, currentBalance = 0 }: R
               return (
                 <button
                   key={amount}
-                  onClick={() => setSelectedAmount(amount)}
+                  onClick={() => { hapticSelection(); setSelectedAmount(amount); }}
+                  className="pressable"
                   style={{
                     padding: '18px 12px',
                     borderRadius: 18,
@@ -240,6 +245,7 @@ export default function RechargeSheet({ isOpen, onClose, currentBalance = 0 }: R
             disabled={usdtRate === null || loading}
             onClick={() => {
               if (!usdtRate) return;
+              hapticImpact('medium');
               // TODO: 接入充値流程
               alert(`将跳转 USDT 支付：${usdtAmount} USDT`);
             }}

@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import BottomNav from '../../components/BottomNav';
 import RechargeSheet from '../../components/RechargeSheet';
 import { apiFetch } from '../../lib/api-fetch';
+import { hapticImpact, hapticSelection } from '../../lib/telegram/webapp';
 
 interface UserInfo {
   id: number;
@@ -104,7 +105,7 @@ export default function ProfilePage() {
   };
 
   return (
-    <div className="tg-page" style={{ background: '#F6F6F8' }}>
+    <div className="tg-page page-enter" style={{ background: '#F6F6F8' }}>
 
       {/* 顶部绿色资料卡 */}
       <div style={{ padding: 'calc(var(--app-content-top) + 12px) var(--page-padding-x) 0' }}>
@@ -197,7 +198,8 @@ export default function ProfilePage() {
               </div>
             </div>
             <button
-              onClick={() => setRechargeOpen(true)}
+              onClick={() => { hapticImpact('medium'); setRechargeOpen(true); }}
+              className="pressable"
               style={{
                 padding: '12px 28px', borderRadius: 999, border: 'none',
                 background: 'white', color: '#2EA66F',
@@ -219,7 +221,8 @@ export default function ProfilePage() {
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18 }}>
             <span style={{ fontSize: 17, fontWeight: 800, color: '#10201A' }}>我的订单</span>
             <button
-              onClick={() => router.push('/orders')}
+              onClick={() => { hapticSelection(); router.push('/orders'); }}
+              className="pressable"
               style={{ display: 'flex', alignItems: 'center', gap: 2, background: 'none', border: 'none', cursor: 'pointer', color: '#8A9690', fontSize: 14 }}
             >
               查看全部
@@ -235,7 +238,8 @@ export default function ProfilePage() {
               return (
                 <button
                   key={item.key}
-                  onClick={() => router.push('/orders')}
+                  onClick={() => { hapticSelection(); router.push('/orders'); }}
+                  className="pressable"
                   style={{
                     display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8,
                     background: 'none', border: 'none', cursor: 'pointer', flex: 1,
@@ -272,10 +276,12 @@ export default function ProfilePage() {
       <div style={{ padding: '14px var(--page-padding-x) 0' }}>
         <div style={{ background: 'white', borderRadius: 20, overflow: 'hidden', boxShadow: '0 2px 12px rgba(16,32,26,0.06)' }}>
           {/* 优惠券 */}
-          <div style={{
+          <div className="pressable" style={{
             display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-            padding: '18px 20px', borderBottom: '1px solid #F3F4F6',
-          }}>
+            padding: '18px 20px', borderBottom: '1px solid #F3F4F6', cursor: 'pointer',
+          }}
+          onClick={() => hapticSelection()}
+          >
             <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
               <div style={{
                 width: 40, height: 40, borderRadius: 12, background: '#F3F1FA',
@@ -299,7 +305,7 @@ export default function ProfilePage() {
           </div>
 
           {/* 联系客服 */}
-          <a href="#" style={{
+          <a href="#" className="pressable" onClick={() => hapticSelection()} style={{
             display: 'flex', alignItems: 'center', justifyContent: 'space-between',
             padding: '18px 20px', textDecoration: 'none',
           }}>

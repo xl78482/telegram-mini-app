@@ -5,6 +5,7 @@ import { useState, useEffect } from 'react';
 import BottomNav from '../components/BottomNav';
 import ProductCard, { type Product } from '../components/ProductCard';
 import EmptyState from '../components/EmptyState';
+import { hapticSelection } from '../lib/telegram/webapp';
 
 export default function HomePage() {
   const [products, setProducts] = useState<Product[]>([]);
@@ -46,7 +47,7 @@ export default function HomePage() {
     : products.filter(p => p.category === activeCategory);
 
   return (
-    <div className="tg-page" style={{ background: '#F6F6F8' }}>
+    <div className="tg-page page-enter" style={{ background: '#F6F6F8' }}>
 
       {/* ======================================================
           店铺信息卡片
@@ -136,12 +137,13 @@ export default function HomePage() {
         {/* 分类标签 */}
         <div className="no-scrollbar" style={{ overflowX: 'auto', display: 'flex', gap: 8, padding: '0 16px 14px' }}>
           {categories.map(cat => (
-            <button key={cat} onClick={() => setActiveCategory(cat)} style={{
+            <button key={cat} onClick={() => { hapticSelection(); setActiveCategory(cat); }} className="pressable" style={{
               padding: '6px 16px', borderRadius: 999, fontSize: 13,
               fontWeight: activeCategory === cat ? 700 : 500,
               background: activeCategory === cat ? '#32B579' : '#F3F4F6',
               color: activeCategory === cat ? 'white' : '#6B7C73',
               border: 'none', cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0,
+              transition: 'background 0.2s ease, color 0.2s ease',
             }}>{cat}</button>
           ))}
         </div>

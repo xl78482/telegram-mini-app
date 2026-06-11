@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import BottomNav from '../../components/BottomNav'
 import EmptyState from '../../components/EmptyState'
 import { apiFetch } from '../../lib/api-fetch'
+import { hapticImpact, hapticSelection, hapticNotification } from '../../lib/telegram/webapp'
 
 const STATUS_TABS = [
   { key: 'ALL', label: '全部' },
@@ -61,11 +62,14 @@ export default function OrdersPage() {
 
   async function handleCancel(e: React.MouseEvent, orderId: number) {
     e.stopPropagation()
+    hapticImpact('medium')
     setCancelling(orderId)
     try {
       await apiFetch(`/api/orders/${orderId}/cancel`, { method: 'POST' })
+      hapticNotification('success')
       await load()
     } catch (err: unknown) {
+      hapticNotification('error')
       alert(err instanceof Error ? err.message : '取消失败')
     } finally { setCancelling(null) }
   }
@@ -87,7 +91,7 @@ export default function OrdersPage() {
   })
 
   return (
-    <div className="tg-page" style={{ background: '#F6F6F8' }}>
+    <div className="tg-page page-enter" style={{ background: '#F6F6F8' }}>
 
       {/* 头部卡片：标题 + 标签 + 搜索 */}
       <div style={{ padding: 'calc(var(--app-content-top) + 12px) var(--page-padding-x) 0' }}>
@@ -102,12 +106,13 @@ export default function OrdersPage() {
             {STATUS_TABS.map(tab => {
               const active = activeStatus === tab.key
               return (
-                <button key={tab.key} onClick={() => setActiveStatus(tab.key)} style={{
+                <button key={tab.key} onClick={() => { hapticSelection(); setActiveStatus(tab.key) }} className="pressable" style={{
                   padding: '7px 16px', borderRadius: 999, fontSize: 14,
                   fontWeight: active ? 700 : 500,
                   background: active ? '#E8F7EE' : 'transparent',
                   color: active ? '#2EA66F' : '#6B7C73',
                   border: 'none', cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0,
+                  transition: 'background 0.2s ease, color 0.2s ease',
                 }}>{tab.label}</button>
               )
             })}
@@ -150,7 +155,7 @@ export default function OrdersPage() {
           <EmptyState title="暂无订单" description="还没有订单，去选购一件吧" />
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-            {filtered.map(order => {
+            {filtered.map((order, idx) => {
               const status = STATUS_MAP[order.status] ?? { label: order.status, bg: '#F3F4F6', color: '#8A9690' }
               const isTimeout = order.status === 'CANCELLED' && order.cancelReason === 'TIMEOUT'
               const statusLabel = isTimeout ? '超时取消' : status.label
@@ -164,9 +169,11 @@ export default function OrdersPage() {
 
               return (
                 <div key={order.id}
+                  className="item-enter"
                   style={{
                     background: 'white', borderRadius: 22, padding: 18,
                     boxShadow: '0 1px 8px rgba(16,32,26,0.06)',
+                    animationDelay: `${Math.min(idx, 8) * 0.05}s`,
                   }}
                 >
                   {/* 订单号 + 状态 */}
@@ -225,6 +232,7 @@ export default function OrdersPage() {
                       <button
                         onClick={e => handleCancel(e, order.id)}
                         disabled={cancelling === order.id}
+                        className="pressable"
                         style={{
                           padding: '9px 22px', borderRadius: 999,
                           border: '1.5px solid #E0E0E0', background: 'white',
@@ -235,7 +243,8 @@ export default function OrdersPage() {
                       >{cancelling === order.id ? '...' : '取消订单'}</button>
                     )}
                     <button
-                      onClick={() => alert('请联系客服')}
+                      onClick={() => { hapticImpact('light'); alert('请联系客服') }}
+                      className="pressable"
                       style={{
                         padding: '9px 22px', borderRadius: 999,
                         border: '1.5px solid #B7E3CC', background: 'white',
@@ -243,7 +252,8 @@ export default function OrdersPage() {
                       }}
                     >联系客服</button>
                     <button
-                      onClick={() => router.push(`/orders/${order.id}`)}
+                      onClick={() => { hapticImpact('light'); router.push(`/orders/${order.id}`) }}
+                      className="pressable"
                       style={{
                         padding: '9px 22px', borderRadius: 999, border: 'none',
                         background: '#3DAE74', fontSize: 14, fontWeight: 600, color: 'white', cursor: 'pointer',

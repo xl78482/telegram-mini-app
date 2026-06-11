@@ -2,7 +2,7 @@
 /* BUILD: 2026-06-11-v4 */
 
 import { useEffect } from 'react';
-import { initTelegramWebApp } from '../lib/telegram/webapp';
+import { initTelegramWebApp, onViewportEvents } from '../lib/telegram/webapp';
 
 /**
  * 控制按钒区域保守尺寸——不依赖 Telegram 注入的 CSS 变量，直接用 JS API 读取实际尺寸
@@ -14,6 +14,9 @@ export default function TelegramProvider({ children }: { children: React.ReactNo
   useEffect(() => {
     initTelegramWebApp();
     applySafeAreaVars();
+    // 监听视口 / 安全区变化（旋转屏幕、进入全屏、键盘弹出等），动态重算
+    const cleanup = onViewportEvents(applySafeAreaVars);
+    return cleanup;
   }, []);
 
   return <>{children}</>;

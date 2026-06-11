@@ -1,7 +1,8 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
+import { hapticSelection } from '../lib/telegram/webapp';
 
 const tabs = [
   {
@@ -42,6 +43,7 @@ const tabs = [
 
 export default function BottomNav() {
   const pathname = usePathname();
+  const router = useRouter();
 
   const isActive = (href: string) => {
     if (href === '/') return pathname === '/';
@@ -56,6 +58,12 @@ export default function BottomNav() {
           <Link
             key={tab.href}
             href={tab.href}
+            prefetch
+            onClick={e => {
+              if (active) { e.preventDefault(); return; }
+              hapticSelection();
+            }}
+            onMouseEnter={() => router.prefetch(tab.href)}
             style={{
               flex: 1,
               display: 'flex',
@@ -64,6 +72,7 @@ export default function BottomNav() {
               justifyContent: 'center',
               gap: 3,
               textDecoration: 'none',
+              WebkitTapHighlightColor: 'transparent',
             }}
           >
             <div
@@ -71,10 +80,11 @@ export default function BottomNav() {
                 padding: active ? '4px 16px' : '4px 8px',
                 borderRadius: 999,
                 background: active ? '#E8F7EE' : 'transparent',
-                transition: 'all 0.15s ease',
+                transition: 'all 0.28s cubic-bezier(0.34, 1.56, 0.64, 1)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
+                transform: active ? 'translateY(-1px)' : 'none',
               }}
             >
               {tab.icon(active)}
@@ -85,6 +95,7 @@ export default function BottomNav() {
                 fontWeight: active ? 600 : 400,
                 color: active ? '#32B579' : '#8A9690',
                 lineHeight: 1,
+                transition: 'color 0.2s ease',
               }}
             >
               {tab.label}

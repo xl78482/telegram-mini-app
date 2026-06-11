@@ -69,9 +69,18 @@ body {
   color: var(--color-text);
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', sans-serif;
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
   overscroll-behavior: none;
   min-height: var(--tg-viewport-stable-height, 100dvh);
+  /* iOS 惯性滚动 + 禁止文字选中导致的卡顿 */
+  -webkit-overflow-scrolling: touch;
+  -webkit-touch-callout: none;
+  user-select: none;
 }
+
+/* 输入框允许选中 */
+input, textarea { user-select: text; -webkit-user-select: text; }
 
 /* ============================================
    布局容器
@@ -147,3 +156,46 @@ body {
 .status-pending    { background: #FFF4E5; color: #F59E0B; }
 .status-processing { background: #EEF3FF; color: #4F74E8; }
 .status-cancelled  { background: #F5F5F5; color: #8A9690; }
+
+/* ============================================
+   丝滑动效
+   ============================================ */
+
+/* 页面进入：淡入 + 轻微上移 */
+@keyframes pageEnter {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.page-enter {
+  animation: pageEnter 0.34s cubic-bezier(0.22, 0.61, 0.36, 1) both;
+}
+
+/* 列表项逐个进入 */
+@keyframes itemEnter {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.item-enter {
+  animation: itemEnter 0.42s cubic-bezier(0.22, 0.61, 0.36, 1) both;
+}
+
+/*
+ * 通用可点击元素：统一的按压回弹反馈
+ * 使用 transform + 高速 transition，配合 JS 触觉反馈实现"丝滑"手感
+ */
+.pressable {
+  transition: transform 0.16s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.16s ease;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+.pressable:active {
+  transform: scale(0.96);
+  opacity: 0.9;
+}
+
+/* 尊重用户的"减少动效"系统设置 */
+@media (prefers-reduced-motion: reduce) {
+  .page-enter, .item-enter { animation: none; }
+  .pressable { transition: none; }
+  *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+}

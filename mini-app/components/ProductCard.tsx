@@ -1,6 +1,7 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
+import { hapticImpact } from '../lib/telegram/webapp';
 
 export interface Product {
   id: number;
@@ -28,7 +29,7 @@ export default function ProductCard({ product }: { product: Product }) {
 
   return (
     <div
-      onClick={() => !isSoldOut && router.push(`/product/${product.id}`)}
+      onClick={() => { if (!isSoldOut) { hapticImpact('light'); router.push(`/product/${product.id}`); } }}
       style={{
         background: 'white',
         borderRadius: 18,

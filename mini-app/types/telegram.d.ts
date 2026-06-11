@@ -9,10 +9,17 @@ declare global {
         ready?: () => void;
         expand?: () => void;
         requestFullscreen?: () => void;
+        disableVerticalSwipes?: () => void;
+        enableVerticalSwipes?: () => void;
         isVersionAtLeast?: (version: string) => boolean;
         setHeaderColor?: (color: string) => void;
         setBackgroundColor?: (color: string) => void;
         setBottomBarColor?: (color: string) => void;
+        HapticFeedback?: {
+          impactOccurred?: (style: 'light' | 'medium' | 'heavy' | 'rigid' | 'soft') => void;
+          notificationOccurred?: (type: 'success' | 'warning' | 'error') => void;
+          selectionChanged?: () => void;
+        };
         BackButton?: {
           show?: () => void;
           hide?: () => void;
