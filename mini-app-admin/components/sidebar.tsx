@@ -1,13 +1,14 @@
 'use client'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
-import { LayoutDashboard, Package, ClipboardList, Users, LogOut } from 'lucide-react'
+import { LayoutDashboard, Package, ClipboardList, Users, LogOut, KeySquare } from 'lucide-react'
 
 const nav = [
   { href: '/',         icon: LayoutDashboard, label: '数据概览' },
   { href: '/products', icon: Package,         label: '商品管理' },
   { href: '/orders',   icon: ClipboardList,   label: '订单管理' },
   { href: '/users',    icon: Users,           label: '用户管理' },
+  { href: '/cards',    icon: KeySquare,       label: '卡密库存' },
 ]
 
 export function Sidebar() {
