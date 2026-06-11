@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { requireAuth } from '@/lib/auth'
+import { Prisma } from '@prisma/client'
 
 export async function GET() {
   try {
@@ -47,13 +48,24 @@ export async function POST(req: NextRequest) {
     await requireAuth()
     const body = await req.json()
 
-    if (!body.name?.trim()) {
+    const name = body.name?.trim()
+    if (!name) {
       return NextResponse.json({ error: '商品名必填' }, { status: 400 })
     }
 
-    const price = Number(body.price)
-    if (isNaN(price) || price < 0) {
+    let price: Prisma.Decimal
+    try {
+      price = new Prisma.Decimal(String(body.price ?? ''))
+    } catch {
       return NextResponse.json({ error: '价格必须为有效数字' }, { status: 400 })
+    }
+    if (price.lt(0)) {
+      return NextResponse.json({ error: '价格不能小于 0' }, { status: 400 })
+    }
+
+    const sortOrder = Number(body.sortOrder ?? 0)
+    if (!Number.isFinite(sortOrder)) {
+      return NextResponse.json({ error: '排序值必须为有效数字' }, { status: 400 })
     }
 
     // images: 空字符串保存为 null
@@ -63,10 +75,13 @@ export async function POST(req: NextRequest) {
       // 支持两种格式：JSON 数组 或 多行文本（每行一个 URL）
       const trimmed = rawImages.trim()
       if (trimmed.startsWith('[')) {
-        // 已是 JSON 数组格式
-        try { JSON.parse(trimmed); images = trimmed } catch { images = null }
+        try {
+          const parsed = JSON.parse(trimmed)
+          images = Array.isArray(parsed) ? JSON.stringify(parsed.filter(Boolean)) : null
+        } catch {
+          images = null
+        }
       } else {
-        // 多行 URL 转成 JSON 数组
         const urls = trimmed.split('\n').map((u: string) => u.trim()).filter(Boolean)
         images = JSON.stringify(urls)
       }
@@ -74,13 +89,13 @@ export async function POST(req: NextRequest) {
 
     const product = await prisma.product.create({
       data: {
-        name: body.name.trim(),
+        name,
         description: body.description?.trim() || null,
         price,
-        stock: Number(body.stock ?? 0),
+        stock: 0,
         images,
         category: body.category?.trim() || null,
-        sortOrder: Number(body.sortOrder ?? 0),
+        sortOrder,
         isActive: body.isActive ?? true,
       },
     })
