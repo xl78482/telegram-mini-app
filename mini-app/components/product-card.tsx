@@ -1,2 +1,2 @@
-// 旧文件保留兼容，实际使用 ProductCard.tsx
-export { ProductCard } from './ProductCard'
+export { default } from './ProductCard'
+export { default as ProductCard } from './ProductCard'

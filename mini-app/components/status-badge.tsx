@@ -1,2 +1,2 @@
-// 旧文件保留兼容
-export { StatusBadge } from './StatusBadge'
+export { default } from './StatusBadge'
+export { default as StatusBadge } from './StatusBadge'
