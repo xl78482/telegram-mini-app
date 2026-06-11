@@ -1,122 +1,160 @@
-'use client'
-import Image from 'next/image'
-import Link from 'next/link'
-import { StatusBadge } from './StatusBadge'
+'use client';
+
+import { useRouter } from 'next/navigation';
+import StatusBadge from './StatusBadge';
 
 interface OrderItem {
-  name: string
-  quantity: number
-  price: string
-  product?: { images?: string | null } | null
+  id: number;
+  productName: string;
+  quantity: number;
+  price: number;
 }
 
 interface Order {
-  id: number
-  orderNo: string
-  status: string
-  totalAmount: string
-  paymentMethod?: string
-  createdAt: string
-  items: OrderItem[]
+  id: number;
+  orderNo: string;
+  status: string;
+  totalAmount: number;
+  paymentMethod?: string | null;
+  items: OrderItem[];
+  createdAt: string;
+}
+
+interface OrderCardProps {
+  order: Order;
 }
 
 function formatDate(dateStr: string) {
-  const d = new Date(dateStr)
-  return `${d.getFullYear()}年${String(d.getMonth() + 1).padStart(2, '0')}月${String(d.getDate()).padStart(2, '0')}日 ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
+  const d = new Date(dateStr);
+  const y = d.getFullYear();
+  const mo = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  const h = String(d.getHours()).padStart(2, '0');
+  const mi = String(d.getMinutes()).padStart(2, '0');
+  return `${y}年${mo}月${day}日 ${h}:${mi}`;
 }
 
-export function OrderCard({ order }: { order: Order }) {
-  const firstItem = order.items[0]
-  const images = firstItem?.product?.images
-    ? (() => { try { return JSON.parse(firstItem.product!.images!) as string[] } catch { return [] } })()
-    : []
-  const thumb = images[0] ?? null
-  const isUsdt = order.paymentMethod === 'usdt'
-  const isOkpay = order.paymentMethod === 'okpay'
-  const totalQty = order.items.reduce((s, i) => s + i.quantity, 0)
-  const payLabel = isUsdt ? 'USDT' : isOkpay ? 'OKPay' : '余额'
+export default function OrderCard({ order }: OrderCardProps) {
+  const router = useRouter();
+  const firstItem = order.items[0];
+  const isUsdt = order.paymentMethod === 'USDT';
+  const isOkpay = order.paymentMethod === 'OKPAY';
+  const isFiat = !isUsdt && !isOkpay;
 
   return (
-    <div style={{
-      background: '#fff',
-      borderRadius: 24,
-      boxShadow: '0 2px 14px rgba(0,0,0,0.055)',
-      padding: '18px 16px 16px',
-      marginBottom: 14,
-    }}>
-      {/* 顶部：订单号 + 状态 */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
-        <p style={{ fontSize: 11.5, color: '#8A9690', fontFeatureSettings: '"tnum"' }}
-        >订单号：{order.orderNo}</p>
+    <div
+      style={{
+        background: 'white',
+        borderRadius: 24,
+        boxShadow: '0 2px 12px rgba(16,32,26,0.07)',
+        overflow: 'hidden',
+        marginBottom: 14,
+      }}
+    >
+      {/* Header */}
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          padding: '14px 18px 12px',
+          borderBottom: '1px solid #F3F4F6',
+        }}
+      >
+        <span style={{ fontSize: 13, color: '#8A9690' }}>
+          订单号：<span style={{ color: '#6B7C73', fontWeight: 500 }}>{order.orderNo}</span>
+        </span>
         <StatusBadge status={order.status} />
       </div>
 
-      {/* 商品信息 */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
-        <div style={{
-          width: 56, height: 56, borderRadius: 14,
-          overflow: 'hidden', flexShrink: 0,
-          background: '#F0FAF5', position: 'relative',
-        }}>
-          {thumb ? (
-            <Image src={thumb} alt={firstItem?.name ?? ''} fill sizes="56px" style={{ objectFit: 'cover' }} unoptimized />
-          ) : (
-            <div style={{
-              width: '100%', height: '100%',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              color: '#2EA66F',
-            }}>
-              <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-                <path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/>
-              </svg>
-            </div>
-          )}
+      {/* Product info */}
+      <div style={{ padding: '14px 18px 12px', display: 'flex', gap: 12 }}>
+        {/* Avatar */}
+        <div
+          style={{
+            width: 56,
+            height: 56,
+            borderRadius: 14,
+            background: '#F0F4F2',
+            flexShrink: 0,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none">
+            <rect x="3" y="5" width="18" height="14" rx="2" stroke="#32B579" strokeWidth="1.5" />
+            <circle cx="9" cy="10" r="2" stroke="#32B579" strokeWidth="1.5" />
+            <path d="M3 16L7 12L10 15L14 11L21 16" stroke="#32B579" strokeWidth="1.5" strokeLinejoin="round" />
+          </svg>
         </div>
+
         <div style={{ flex: 1, minWidth: 0 }}>
-          <p style={{
-            fontSize: 14, fontWeight: 700, color: '#10201A', marginBottom: 5,
-            overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-          }}>
-            {firstItem?.name ?? '商品'}
-            {order.items.length > 1 && <span style={{ color: '#8A9690', fontWeight: 400 }}> 等{order.items.length}件</span>}
-          </p>
-          <p style={{ fontSize: 12, color: '#8A9690' }}>
-            数量 {totalQty} · {payLabel} · {formatDate(order.createdAt)}
-          </p>
+          <div style={{ fontWeight: 700, fontSize: 15, color: '#10201A', marginBottom: 5 }}>
+            {firstItem?.productName || '商品'}
+          </div>
+          <div style={{ fontSize: 13, color: '#8A9690' }}>
+            数量 {firstItem?.quantity ?? 1} · {isUsdt ? 'USDT' : isOkpay ? 'OKPay' : '余额'} · {formatDate(order.createdAt)}
+          </div>
         </div>
       </div>
 
-      {/* 金额 */}
-      <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', marginBottom: 4, gap: 4 }}>
-        <span style={{ fontSize: 13, color: '#8A9690' }}>实付</span>
-        {isUsdt || isOkpay ? (
-          <>
-            <span style={{ fontSize: 15, fontWeight: 800, color: '#3B6FE0' }}>
-              {Number(order.totalAmount).toFixed(2)} {isUsdt ? 'USDT' : 'OKPay'}
-            </span>
-            <span style={{ fontSize: 12, color: '#8A9690' }}>约 ¥{Number(order.totalAmount).toFixed(2)}</span>
-          </>
+      {/* Amount */}
+      <div style={{ padding: '0 18px 12px' }}>
+        {isFiat ? (
+          <span style={{ fontSize: 14, color: '#6B7C73' }}>
+            实付 <span style={{ color: '#32B579', fontWeight: 700, fontSize: 16 }}>¥{order.totalAmount.toFixed(2)}</span>
+          </span>
         ) : (
-          <span style={{ fontSize: 15, fontWeight: 800, color: '#2EA66F' }}>¥{Number(order.totalAmount).toFixed(2)}</span>
+          <span style={{ fontSize: 14, color: '#6B7C73' }}>
+            实付 <span style={{ color: '#4F74E8', fontWeight: 700, fontSize: 16 }}>{order.totalAmount.toFixed(2)} {isUsdt ? 'USDT' : 'OKPay'}</span>
+            {' '}<span style={{ color: '#8A9690', fontSize: 12 }}>约 ¥{order.totalAmount.toFixed(2)}</span>
+          </span>
         )}
       </div>
 
-      {/* 虚线 */}
-      <hr className="divider-dashed" />
+      {/* Divider dashed */}
+      <div style={{ margin: '0 18px', borderTop: '1px dashed #ECEEF0' }} />
 
-      {/* 底部按钮 */}
-      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
-        <button style={{
-          padding: '8px 18px', borderRadius: 999, fontSize: 13, fontWeight: 600,
-          background: '#fff', border: '1.5px solid #2EA66F', color: '#2EA66F', cursor: 'pointer',
-        }}>联系客服</button>
-        <Link href={`/orders/${order.id}`} style={{ textDecoration: 'none' }}>
-          <button style={{
-            padding: '8px 18px', borderRadius: 999, fontSize: 13, fontWeight: 700,
-            background: '#2EA66F', border: 'none', color: '#fff', cursor: 'pointer',
-          }}>查看详情</button>
-        </Link>
+      {/* Actions */}
+      <div
+        style={{
+          padding: '12px 18px',
+          display: 'flex',
+          justifyContent: 'flex-end',
+          gap: 10,
+        }}
+      >
+        <button
+          style={{
+            padding: '8px 18px',
+            borderRadius: 999,
+            fontSize: 13,
+            fontWeight: 600,
+            border: '1.5px solid #32B579',
+            background: 'transparent',
+            color: '#32B579',
+            cursor: 'pointer',
+          }}
+        >
+          联系客服
+        </button>
+        <button
+          onClick={() => router.push(`/orders/${order.id}`)}
+          style={{
+            padding: '8px 18px',
+            borderRadius: 999,
+            fontSize: 13,
+            fontWeight: 600,
+            border: 'none',
+            background: '#32B579',
+            color: 'white',
+            cursor: 'pointer',
+          }}
+        >
+          查看详情
+        </button>
       </div>
     </div>
-  )
+  );
 }

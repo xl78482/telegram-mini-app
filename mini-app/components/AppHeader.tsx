@@ -1,57 +1,103 @@
-'use client'
-import { useRouter } from 'next/navigation'
+'use client';
+
+import { useState, useEffect } from 'react';
 
 interface AppHeaderProps {
-  title?: string
-  subtitle?: string
-  showBack?: boolean
-  backLabel?: string
+  title?: string;
+  subtitle?: string;
+  onClose?: () => void;
 }
 
-export function AppHeader({
+export default function AppHeader({
   title = '财神商盟',
   subtitle = '小程序',
-  showBack = false,
-  backLabel = '返回',
+  onClose,
 }: AppHeaderProps) {
-  const router = useRouter()
+  const [isTelegram, setIsTelegram] = useState(false);
+  const [showMenu, setShowMenu] = useState(false);
 
+  useEffect(() => {
+    if (typeof window !== 'undefined' && window.Telegram?.WebApp?.platform !== 'unknown') {
+      setIsTelegram(true);
+    }
+  }, []);
+
+  // In real Telegram env, the native header is shown; we still show our custom one for branding
   return (
-    <header className="app-header">
-      <div className="app-header-inner">
-        {/* 左侧 */}
-        <div style={{ minWidth: 52 }}>
-          {showBack ? (
-            <button
-              className="app-header-btn"
-              onClick={() => router.back()}
-              style={{ display: 'flex', alignItems: 'center', gap: 2 }}
-            >
-              <svg width="9" height="15" viewBox="0 0 9 15" fill="none">
-                <path d="M8 1L1.5 7.5L8 14" stroke="#2EA66F" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-              </svg>
-              <span style={{ marginLeft: 2 }}>{backLabel}</span>
-            </button>
-          ) : (
-            <button className="app-header-btn">关闭</button>
-          )}
+    <header
+      style={{
+        background: 'white',
+        borderBottom: '1px solid #ECEEF0',
+        position: 'sticky',
+        top: 0,
+        zIndex: 50,
+        paddingTop: 'env(safe-area-inset-top, 0px)',
+      }}
+    >
+      <div
+        style={{
+          height: 64,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          padding: '0 16px',
+          position: 'relative',
+        }}
+      >
+        {/* Left: Close */}
+        <button
+          onClick={onClose}
+          style={{
+            fontSize: 15,
+            color: '#6B7C73',
+            background: 'none',
+            border: 'none',
+            cursor: 'pointer',
+            padding: '4px 0',
+            minWidth: 44,
+          }}
+        >
+          关闭
+        </button>
+
+        {/* Center: Title */}
+        <div style={{ textAlign: 'center', position: 'absolute', left: '50%', transform: 'translateX(-50%)' }}>
+          <div style={{ fontWeight: 700, fontSize: 16, color: '#10201A', lineHeight: 1.2 }}>{title}</div>
+          <div style={{ fontSize: 12, color: '#8A9690', marginTop: 2 }}>{subtitle}</div>
         </div>
 
-        {/* 中间 */}
-        <div style={{ textAlign: 'center', flex: 1 }}>
-          <p style={{ fontSize: 16, fontWeight: 800, color: '#10201A', lineHeight: 1.25 }}>{title}</p>
-          <p style={{ fontSize: 11, color: '#8A9690', marginTop: 2, letterSpacing: 0.3 }}>{subtitle || '小程序'}</p>
-        </div>
-
-        {/* 右侧三点 */}
-        <div style={{ minWidth: 52, display: 'flex', justifyContent: 'flex-end' }}>
-          <button className="app-header-menu-btn" aria-label="更多">
-            <span className="app-header-dot" />
-            <span className="app-header-dot" />
-            <span className="app-header-dot" />
-          </button>
-        </div>
+        {/* Right: More button */}
+        <button
+          onClick={() => setShowMenu(!showMenu)}
+          style={{
+            width: 36,
+            height: 36,
+            borderRadius: '50%',
+            background: '#F6F6F8',
+            border: 'none',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            flexDirection: 'column',
+            gap: 3,
+          }}
+          aria-label="更多"
+        >
+          {[0,1,2].map(i => (
+            <span
+              key={i}
+              style={{
+                width: 4,
+                height: 4,
+                borderRadius: '50%',
+                background: '#6B7C73',
+                display: 'block',
+              }}
+            />
+          ))}
+        </button>
       </div>
     </header>
-  )
+  );
 }

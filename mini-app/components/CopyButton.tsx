@@ -1,59 +1,67 @@
-'use client'
-import { useState } from 'react'
+'use client';
 
-export function CopyButton({ text, label = '复制', size = 14 }: { text: string; label?: string; size?: number }) {
-  const [copied, setCopied] = useState(false)
+import { useState } from 'react';
 
-  async function handleCopy(e: React.MouseEvent) {
-    e.stopPropagation()
+interface CopyButtonProps {
+  text: string;
+  label?: string;
+  style?: React.CSSProperties;
+}
+
+export default function CopyButton({ text, label = '复制', style }: CopyButtonProps) {
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = async (e: React.MouseEvent) => {
+    e.stopPropagation();
     try {
-      await navigator.clipboard.writeText(text)
-      setCopied(true)
-      setTimeout(() => setCopied(false), 2000)
+      await navigator.clipboard.writeText(text);
     } catch {
-      // fallback for older devices
-      const el = document.createElement('textarea')
-      el.value = text
-      document.body.appendChild(el)
-      el.select()
-      document.execCommand('copy')
-      document.body.removeChild(el)
-      setCopied(true)
-      setTimeout(() => setCopied(false), 2000)
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
     }
-  }
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1500);
+  };
 
   return (
     <button
       onClick={handleCopy}
       style={{
-        background: copied ? '#E8F7F0' : '#F6F6F8',
-        border: copied ? '1px solid #b8e6d4' : '1px solid #EBEBEB',
-        borderRadius: 8,
-        padding: '5px 10px',
+        padding: '5px 14px',
+        borderRadius: 999,
+        fontSize: 13,
+        fontWeight: 600,
+        border: '1.5px solid #32B579',
+        background: copied ? '#E8F7EE' : 'transparent',
+        color: '#32B579',
         cursor: 'pointer',
+        transition: 'all 0.2s ease',
         display: 'inline-flex',
         alignItems: 'center',
         gap: 4,
-        color: copied ? '#2EA66F' : '#8A9690',
-        fontSize: size,
-        fontWeight: 600,
-        flexShrink: 0,
-        transition: 'all 0.15s',
-        whiteSpace: 'nowrap',
+        ...style,
       }}
     >
       {copied ? (
-        <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-          <polyline points="20 6 9 17 4 12"/>
-        </svg>
+        <>
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none">
+            <path d="M5 12L10 17L19 7" stroke="#32B579" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+          已复制
+        </>
       ) : (
-        <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-          <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
-          <path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/>
-        </svg>
+        <>
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none">
+            <rect x="9" y="9" width="11" height="11" rx="2" stroke="#32B579" strokeWidth="2" />
+            <path d="M5 15H4C2.9 15 2 14.1 2 13V4C2 2.9 2.9 2 4 2H13C14.1 2 15 2.9 15 4V5" stroke="#32B579" strokeWidth="2" />
+          </svg>
+          {label}
+        </>
       )}
-      {copied ? '已复制' : label}
     </button>
-  )
+  );
 }

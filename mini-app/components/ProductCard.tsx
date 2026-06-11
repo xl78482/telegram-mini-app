@@ -1,103 +1,133 @@
-'use client'
-import Image from 'next/image'
-import Link from 'next/link'
+'use client';
+
+import { useRouter } from 'next/navigation';
+import Image from 'next/image';
 
 interface Product {
-  id: number
-  name: string
-  price: string
-  images?: string | null
-  stock: number
-  description?: string | null
-  soldCount?: number
+  id: number;
+  name: string;
+  description?: string | null;
+  price: number;
+  stock: number;
+  sales?: number;
+  images?: string;
+  isActive: boolean;
 }
 
-export function ProductCard({ product }: { product: Product }) {
-  const images = product.images ? (() => { try { return JSON.parse(product.images!) as string[] } catch { return [] } })() : []
-  const thumb = images[0] ?? null
-  const isSoldOut = product.stock === 0
+interface ProductCardProps {
+  product: Product;
+}
+
+export default function ProductCard({ product }: ProductCardProps) {
+  const router = useRouter();
+
+  let imageUrl: string | null = null;
+  try {
+    const imgs = JSON.parse(product.images || '[]');
+    imageUrl = imgs[0] || null;
+  } catch {}
+
+  const isSoldOut = product.stock === 0;
 
   return (
-    <Link href={`/product/${product.id}`} style={{ textDecoration: 'none', display: 'block' }} className="tap-active">
-      <div style={{
-        background: '#fff',
+    <div
+      onClick={() => !isSoldOut && router.push(`/product/${product.id}`)}
+      style={{
+        background: 'white',
         borderRadius: 20,
-        boxShadow: '0 2px 12px rgba(0,0,0,0.055)',
-        padding: '14px',
+        boxShadow: '0 2px 12px rgba(16,32,26,0.07)',
+        padding: 16,
         display: 'flex',
         alignItems: 'center',
         gap: 14,
-        marginBottom: 10,
-        position: 'relative',
-        overflow: 'hidden',
-        opacity: isSoldOut ? 0.7 : 1,
-      }}>
-        {/* 图片 */}
-        <div style={{
-          width: 72,
-          height: 72,
+        cursor: isSoldOut ? 'not-allowed' : 'pointer',
+        opacity: isSoldOut ? 0.6 : 1,
+        transition: 'transform 0.15s ease, box-shadow 0.15s ease',
+        WebkitTapHighlightColor: 'transparent',
+      }}
+      onTouchStart={e => { if (!isSoldOut) e.currentTarget.style.transform = 'scale(0.985)'; }}
+      onTouchEnd={e => { e.currentTarget.style.transform = 'scale(1)'; }}
+    >
+      {/* Image */}
+      <div
+        style={{
+          width: 68,
+          height: 68,
           borderRadius: 16,
           overflow: 'hidden',
           flexShrink: 0,
-          background: '#F0FAF5',
+          background: '#F0F4F2',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
           position: 'relative',
-        }}>
-          {thumb ? (
-            <Image src={thumb} alt={product.name} fill sizes="72px" style={{ objectFit: 'cover' }} unoptimized />
-          ) : (
-            <div style={{
-              width: '100%', height: '100%',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontSize: 30, color: '#2EA66F',
-            }}>
-              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-                <path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/>
-              </svg>
-            </div>
-          )}
-          {isSoldOut && (
-            <div style={{
-              position: 'absolute', inset: 0,
-              background: 'rgba(0,0,0,0.4)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-            }}>
-              <span style={{
-                fontSize: 10, color: '#fff', fontWeight: 700,
-                background: 'rgba(0,0,0,0.55)', padding: '2px 7px', borderRadius: 999,
-              }}>已售罄</span>
-            </div>
-          )}
-        </div>
-
-        {/* 信息 */}
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <p style={{
-            fontSize: 15, fontWeight: 700, color: '#10201A',
-            marginBottom: 4,
-            overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-          }}>{product.name}</p>
-          {product.description && (
-            <p style={{
-              fontSize: 12, color: '#8A9690', marginBottom: 8,
-              overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-            }}>{product.description}</p>
-          )}
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: product.description ? 0 : 6 }}>
-            <span style={{ fontSize: 17, fontWeight: 800, color: '#2EA66F' }}>¥{Number(product.price).toFixed(2)}</span>
-            <div style={{ display: 'flex', gap: 8, fontSize: 11, color: '#8A9690' }}>
-              <span>库存 {product.stock}</span>
-              {product.soldCount !== undefined && <span>已售 {product.soldCount}</span>}
-            </div>
-          </div>
-        </div>
-
-        {/* 右箭头 */}
-        <div style={{ color: '#C8D4CC', flexShrink: 0, fontSize: 18 }}>
-          <svg width="7" height="12" viewBox="0 0 7 12" fill="none">
-            <path d="M1 1l5 5-5 5" stroke="#C8D4CC" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+        }}
+      >
+        {imageUrl ? (
+          <img
+            src={imageUrl}
+            alt={product.name}
+            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+          />
+        ) : (
+          <svg width="32" height="32" viewBox="0 0 24 24" fill="none">
+            <rect x="3" y="5" width="18" height="14" rx="2" stroke="#32B579" strokeWidth="1.5" />
+            <circle cx="9" cy="10" r="2" stroke="#32B579" strokeWidth="1.5" />
+            <path d="M3 16L7 12L10 15L14 11L21 16" stroke="#32B579" strokeWidth="1.5" strokeLinejoin="round" />
           </svg>
+        )}
+        {isSoldOut && (
+          <div style={{
+            position: 'absolute', inset: 0,
+            background: 'rgba(0,0,0,0.45)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            borderRadius: 16,
+          }}>
+            <span style={{ color: 'white', fontSize: 12, fontWeight: 600 }}>售罄</span>
+          </div>
+        )}
+      </div>
+
+      {/* Info */}
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{
+          fontWeight: 700,
+          fontSize: 15,
+          color: '#10201A',
+          marginBottom: 4,
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+          whiteSpace: 'nowrap',
+        }}>
+          {product.name}
+        </div>
+        {product.description && (
+          <div style={{
+            fontSize: 13,
+            color: '#8A9690',
+            marginBottom: 8,
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+          }}>
+            {product.description}
+          </div>
+        )}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <span style={{ fontSize: 16, fontWeight: 700, color: '#32B579' }}>
+            ¥{product.price.toFixed(2)}
+          </span>
+          <span style={{ fontSize: 12, color: '#8A9690' }}>库存 {product.stock}</span>
+          {(product.sales ?? 0) > 0 && (
+            <span style={{ fontSize: 12, color: '#8A9690' }}>已售 {product.sales}</span>
+          )}
         </div>
       </div>
-    </Link>
-  )
+
+      {/* Arrow */}
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" style={{ flexShrink: 0, color: '#CCDBD5' }}>
+        <path d="M9 6L15 12L9 18" stroke="#CCDBD5" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+    </div>
+  );
 }

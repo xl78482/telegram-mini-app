@@ -1,70 +1,62 @@
-'use client'
+'use client';
 
-const METHODS = [
-  {
-    key: 'balance',
-    label: '余额支付',
-    icon: (
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-        <rect x="2" y="7" width="20" height="14" rx="2" ry="2"/>
-        <path d="M16 21V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v16"/>
-      </svg>
-    ),
-  },
-  {
-    key: 'usdt',
-    label: 'USDT',
-    icon: (
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-        <circle cx="12" cy="12" r="10"/>
-        <path d="M12 6v12M9 9h4.5a1.5 1.5 0 010 3H9m0 0h4.5a1.5 1.5 0 010 3H9"/>
-      </svg>
-    ),
-  },
-  {
-    key: 'okpay',
-    label: 'OKPay',
-    icon: (
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M21 4H3a2 2 0 00-2 2v13a2 2 0 002 2h18a2 2 0 002-2V6a2 2 0 00-2-2z"/>
-        <path d="M1 10h22"/>
-      </svg>
-    ),
-  },
-]
+type PaymentMethod = 'BALANCE' | 'USDT' | 'OKPAY';
 
-export function PaymentMethodTabs({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+interface PaymentMethodTabsProps {
+  value: PaymentMethod;
+  onChange: (v: PaymentMethod) => void;
+  balance?: number;
+}
+
+const methods: { key: PaymentMethod; label: string; icon: string }[] = [
+  { key: 'BALANCE', label: '余额支付', icon: '💰' },
+  { key: 'USDT', label: 'USDT', icon: '🪙' },
+  { key: 'OKPAY', label: 'OKPay', icon: '💳' },
+];
+
+export default function PaymentMethodTabs({ value, onChange, balance }: PaymentMethodTabsProps) {
   return (
-    <div style={{ display: 'flex', gap: 10 }}>
-      {METHODS.map(m => {
-        const active = value === m.key
-        return (
-          <button
-            key={m.key}
-            onClick={() => onChange(m.key)}
-            style={{
-              flex: 1,
-              padding: '14px 6px 12px',
-              borderRadius: 16,
-              fontSize: 12,
-              fontWeight: 600,
-              cursor: 'pointer',
-              border: active ? '2px solid #2EA66F' : '1.5px solid #EAEAEA',
-              background: active ? '#F0FAF5' : '#FAFAFA',
-              color: active ? '#2EA66F' : '#6B7C73',
-              transition: 'all 0.15s',
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              gap: 6,
-              WebkitTapHighlightColor: 'transparent',
-            }}
-          >
-            {m.icon}
-            <span>{m.label}</span>
-          </button>
-        )
-      })}
+    <div>
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: '1fr 1fr 1fr',
+          gap: 10,
+        }}
+      >
+        {methods.map(m => {
+          const active = value === m.key;
+          return (
+            <button
+              key={m.key}
+              onClick={() => onChange(m.key)}
+              style={{
+                padding: '12px 8px',
+                borderRadius: 16,
+                border: active ? '2px solid #32B579' : '2px solid #ECEEF0',
+                background: active ? '#E8F7EE' : 'white',
+                cursor: 'pointer',
+                textAlign: 'center',
+                transition: 'all 0.15s ease',
+              }}
+            >
+              <div style={{ fontSize: 22, marginBottom: 4 }}>{m.icon}</div>
+              <div
+                style={{
+                  fontSize: 13,
+                  fontWeight: active ? 700 : 500,
+                  color: active ? '#32B579' : '#6B7C73',
+                }}
+              >
+                {m.label}
+              </div>
+              {m.key === 'BALANCE' && balance !== undefined && (
+                <div style={{ fontSize: 11, color: '#8A9690', marginTop: 2 }}>¥{balance.toFixed(2)}</div>
+              )}
+            </button>
+          );
+        })}
+      </div>
     </div>
-  )
+  );
 }

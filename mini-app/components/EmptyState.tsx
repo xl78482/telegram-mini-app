@@ -1,49 +1,47 @@
-import { ReactNode } from 'react'
-
 interface EmptyStateProps {
-  icon?: ReactNode
-  title: string
-  description?: string
-  action?: ReactNode
+  icon?: React.ReactNode;
+  title: string;
+  description?: string;
+  action?: React.ReactNode;
 }
 
-export function EmptyState({ icon, title, description, action }: EmptyStateProps) {
+export default function EmptyState({ icon, title, description, action }: EmptyStateProps) {
   return (
-    <div style={{
-      display: 'flex',
-      flexDirection: 'column',
-      alignItems: 'center',
-      justifyContent: 'center',
-      padding: '52px 24px 40px',
-      gap: 12,
-    }}>
-      <div style={{
-        width: 80,
-        height: 80,
-        borderRadius: 26,
-        background: '#F2F2F4',
+    <div
+      style={{
         display: 'flex',
+        flexDirection: 'column',
         alignItems: 'center',
         justifyContent: 'center',
-        marginBottom: 4,
-        color: '#B0B8B4',
-      }}>
-        {icon ?? (
-          <svg width="38" height="38" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.4">
-            <path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/>
-            <polyline points="3.27 6.96 12 12.01 20.73 6.96"/>
-            <line x1="12" y1="22.08" x2="12" y2="12"/>
+        padding: '60px 32px',
+        textAlign: 'center',
+      }}
+    >
+      <div
+        style={{
+          width: 72,
+          height: 72,
+          borderRadius: 20,
+          background: '#F0F4F2',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          marginBottom: 16,
+        }}
+      >
+        {icon || (
+          <svg width="36" height="36" viewBox="0 0 24 24" fill="none">
+            <path d="M20 7H4C2.9 7 2 7.9 2 9V19C2 20.1 2.9 21 4 21H20C21.1 21 22 20.1 22 19V9C22 7.9 21.1 7 20 7Z" stroke="#32B579" strokeWidth="1.5" />
+            <path d="M16 7V5C16 3.9 15.1 3 14 3H10C8.9 3 8 3.9 8 5V7" stroke="#32B579" strokeWidth="1.5" />
+            <path d="M12 13V17M10 15H14" stroke="#32B579" strokeWidth="1.5" strokeLinecap="round" />
           </svg>
         )}
       </div>
-      <p style={{ fontSize: 17, fontWeight: 700, color: '#10201A' }}>{title}</p>
+      <div style={{ fontSize: 16, fontWeight: 700, color: '#10201A', marginBottom: 8 }}>{title}</div>
       {description && (
-        <p style={{
-          fontSize: 14, color: '#8A9690',
-          textAlign: 'center', maxWidth: 220, lineHeight: 1.65,
-        }}>{description}</p>
+        <div style={{ fontSize: 14, color: '#8A9690', lineHeight: 1.6, maxWidth: 240 }}>{description}</div>
       )}
-      {action && <div style={{ marginTop: 8 }}>{action}</div>}
+      {action && <div style={{ marginTop: 20 }}>{action}</div>}
     </div>
-  )
+  );
 }

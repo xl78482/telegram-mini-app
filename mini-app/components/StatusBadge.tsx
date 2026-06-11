@@ -1,28 +1,33 @@
-const statusMap: Record<string, { label: string; bg: string; color: string }> = {
-  PENDING:    { label: '待付款',  bg: '#FFF3E8', color: '#E07B2A' },
-  PAID:       { label: '已支付',  bg: '#EBF3FF', color: '#3B6FE0' },
-  PROCESSING: { label: '处理中',  bg: '#EBF3FF', color: '#3B6FE0' },
-  COMPLETED:  { label: '已完成',  bg: '#E8F7F0', color: '#2EA66F' },
-  CANCELLED:  { label: '已取消',  bg: '#F2F2F2', color: '#8A9690' },
-  TIMEOUT:    { label: '超时取消', bg: '#F2F2F2', color: '#8A9690' },
-  USER_CANCEL: { label: '用户取消', bg: '#F2F2F2', color: '#8A9690' },
+interface StatusBadgeProps {
+  status: string;
 }
 
-export function StatusBadge({ status }: { status: string }) {
-  const s = statusMap[status] ?? { label: status, bg: '#F2F2F2', color: '#8A9690' }
+const statusConfig: Record<string, { label: string; bg: string; color: string }> = {
+  PENDING:    { label: '待付款', bg: '#FFF4E5', color: '#F59E0B' },
+  PAID:       { label: '已支付', bg: '#EEF3FF', color: '#4F74E8' },
+  PROCESSING: { label: '处理中', bg: '#EEF3FF', color: '#4F74E8' },
+  COMPLETED:  { label: '已完成', bg: '#E8F7EE', color: '#2EA66F' },
+  CANCELLED:  { label: '已取消', bg: '#F5F5F5', color: '#8A9690' },
+  TIMEOUT:    { label: '超时取消', bg: '#F5F5F5', color: '#8A9690' },
+};
+
+export default function StatusBadge({ status }: StatusBadgeProps) {
+  const config = statusConfig[status] || { label: status, bg: '#F5F5F5', color: '#8A9690' };
   return (
-    <span style={{
-      display: 'inline-flex',
-      alignItems: 'center',
-      background: s.bg,
-      color: s.color,
-      fontSize: 12,
-      fontWeight: 700,
-      padding: '4px 11px',
-      borderRadius: 999,
-      letterSpacing: 0.2,
-    }}>
-      {s.label}
+    <span
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        padding: '3px 10px',
+        borderRadius: 999,
+        fontSize: 12,
+        fontWeight: 600,
+        background: config.bg,
+        color: config.color,
+        whiteSpace: 'nowrap',
+      }}
+    >
+      {config.label}
     </span>
-  )
+  );
 }
