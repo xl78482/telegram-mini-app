@@ -1,50 +1,24 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { parseTelegramUser } from '@/lib/telegram'
+import { getOrCreateTelegramUser, type TelegramUserPayload } from '@/lib/telegram-user'
 import { syncProductStock } from '@/lib/stock'
 import { expirePendingOrders } from '@/lib/order-lock'
 import type { Prisma } from '@prisma/client'
 
-const VALID_PAYMENT_METHODS = ['BALANCE', 'EPUSDT', 'OKPAY'] as const
+const VALID_PAYMENT_METHODS = ['BALANCE'] as const
 type PaymentMethod = typeof VALID_PAYMENT_METHODS[number]
 
 type OrderWithItems = Prisma.OrderGetPayload<{ include: { items: true } }>
-type TelegramUser = {
-  id: number | string
-  username?: string
-  first_name?: string
-  last_name?: string
-  photo_url?: string
-}
 
 function genOrderNo() {
   return Date.now().toString(36).toUpperCase() + Math.random().toString(36).slice(2, 6).toUpperCase()
 }
 
-async function getOrCreateTelegramUser(tgUser: TelegramUser) {
-  const tgId = BigInt(tgUser.id)
-  return prisma.user.upsert({
-    where: { tgId },
-    update: {
-      username: tgUser.username ?? null,
-      firstName: tgUser.first_name ?? null,
-      lastName: tgUser.last_name ?? null,
-      avatarUrl: tgUser.photo_url ?? null,
-    },
-    create: {
-      tgId,
-      username: tgUser.username ?? null,
-      firstName: tgUser.first_name ?? null,
-      lastName: tgUser.last_name ?? null,
-      avatarUrl: tgUser.photo_url ?? null,
-    },
-  })
-}
-
 export async function GET(req: NextRequest) {
   try {
     const initData = req.headers.get('x-init-data') ?? ''
-    const tgUser = parseTelegramUser(initData) as TelegramUser | null
+    const tgUser = parseTelegramUser(initData) as TelegramUserPayload | null
     if (!tgUser?.id) return NextResponse.json({ error: '未登录' }, { status: 401 })
 
     const user = await getOrCreateTelegramUser(tgUser)
@@ -90,7 +64,7 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     const initData = req.headers.get('x-init-data') ?? ''
-    const tgUser = parseTelegramUser(initData) as TelegramUser | null
+    const tgUser = parseTelegramUser(initData) as TelegramUserPayload | null
     if (!tgUser?.id) return NextResponse.json({ error: '未登录' }, { status: 401 })
 
     const body = await req.json() as {
@@ -100,7 +74,7 @@ export async function POST(req: NextRequest) {
 
     if (!body.items?.length) return NextResponse.json({ error: 'items 必填' }, { status: 400 })
     if (!body.paymentMethod || !VALID_PAYMENT_METHODS.includes(body.paymentMethod as PaymentMethod)) {
-      return NextResponse.json({ error: 'paymentMethod 必填，必须为 BALANCE / EPUSDT / OKPAY' }, { status: 400 })
+      return NextResponse.json({ error: '当前仅支持余额支付' }, { status: 400 })
     }
     // 每次只允许一个商品规格组合
     if (body.items.length > 1) {
@@ -190,7 +164,7 @@ export async function POST(req: NextRequest) {
           userId: user.id,
           status: 'PENDING',
           payStatus: 'PENDING',
-          paymentMethod: body.paymentMethod as PaymentMethod,
+          paymentMethod: 'BALANCE',
           totalAmount,
           expiresAt,
           items: {
