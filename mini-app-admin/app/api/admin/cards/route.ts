@@ -60,12 +60,33 @@ export async function POST(req: NextRequest) {
   try {
     const body = await req.json()
     const productId = Number(body.productId)
-    if (!productId) return NextResponse.json({ error: 'productId 必填' }, { status: 400 })
+    if (!Number.isInteger(productId) || productId < 1) {
+      return NextResponse.json({ error: 'productId 必填且必须为有效数字' }, { status: 400 })
+    }
 
-    const product = await prisma.product.findUnique({ where: { id: productId } })
+    const product = await prisma.product.findUnique({
+      where: { id: productId },
+      include: { specs: { where: { isActive: true }, select: { id: true, productId: true } } },
+    })
     if (!product) return NextResponse.json({ error: '商品不存在' }, { status: 404 })
 
-    const specId = body.specId ? Number(body.specId) : null
+    const specId = body.specId == null || body.specId === '' ? null : Number(body.specId)
+    if (specId !== null && (!Number.isInteger(specId) || specId < 1)) {
+      return NextResponse.json({ error: 'specId 必须为有效数字' }, { status: 400 })
+    }
+
+    if (product.specs.length > 0) {
+      if (specId === null) {
+        return NextResponse.json({ error: '该商品有规格，导入卡密时必须选择规格' }, { status: 400 })
+      }
+      const specBelongsToProduct = product.specs.some(spec => spec.id === specId && spec.productId === productId)
+      if (!specBelongsToProduct) {
+        return NextResponse.json({ error: '规格不存在、已停用或不属于该商品' }, { status: 400 })
+      }
+    } else if (specId !== null) {
+      return NextResponse.json({ error: '该商品没有规格，不能选择规格导入卡密' }, { status: 400 })
+    }
+
     const rawContent: string = body.content ?? ''
 
     // 拆分、trim、去空行、批次内去重
@@ -97,6 +118,7 @@ export async function POST(req: NextRequest) {
           content,
           status: 'AVAILABLE' as const,
         })),
+        skipDuplicates: true,
       })
     }
 
@@ -109,7 +131,7 @@ export async function POST(req: NextRequest) {
       total: unique.length,
     }, { status: 201 })
   } catch (e) {
-    console.error(e)
-    return NextResponse.json({ error: 'Server error' }, { status: 500 })
+    console.error('[POST /api/admin/cards]', e)
+    return NextResponse.json({ error: '卡密导入失败' }, { status: 500 })
   }
 }
