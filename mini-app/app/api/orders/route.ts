@@ -25,9 +25,19 @@ export async function GET(req: NextRequest) {
       ...o,
       totalAmount: o.totalAmount.toString(),
       items: o.items.map(i => ({
-        ...i,
+        id: i.id,
+        productId: i.productId,
+        // 同时返回 productName 和 name，前端兼容两种字段
+        productName: i.name,
+        name: i.name,
+        quantity: i.quantity,
         price: i.price.toString(),
-        product: i.product ? { ...i.product, price: i.product.price.toString() } : null,
+        // 占位：发卡系统上线前返回空数组
+        cardKeys: [],
+        product: i.product ? {
+          ...i.product,
+          price: i.product.price.toString(),
+        } : null,
       })),
     })))
   } catch (e) {
@@ -53,7 +63,7 @@ export async function POST(req: NextRequest) {
     })
 
     const orderItems = items.map(item => {
-      const p = products.find(p => p.id === item.productId)
+      const p = products.find(prod => prod.id === item.productId)
       if (!p) throw new Error(`Product ${item.productId} not found`)
       if (p.stock < item.quantity) throw new Error(`Insufficient stock for ${p.name}`)
       return { productId: p.id, quantity: item.quantity, price: p.price, name: p.name }
@@ -87,7 +97,19 @@ export async function POST(req: NextRequest) {
       })
     })
 
-    return NextResponse.json({ ...order, totalAmount: order.totalAmount.toString() }, { status: 201 })
+    return NextResponse.json({
+      ...order,
+      totalAmount: order.totalAmount.toString(),
+      items: order.items.map(i => ({
+        id: i.id,
+        productId: i.productId,
+        productName: i.name,
+        name: i.name,
+        quantity: i.quantity,
+        price: i.price.toString(),
+        cardKeys: [],
+      })),
+    }, { status: 201 })
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : 'Server error'
     return NextResponse.json({ error: msg }, { status: 400 })

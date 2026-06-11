@@ -2,15 +2,16 @@
 
 import { useRouter } from 'next/navigation';
 
-interface Product {
+export interface Product {
   id: number;
   name: string;
   description?: string | null;
-  price: number;
+  price: string | number;
   stock: number;
   sales?: number;
   images?: string;
   isActive: boolean;
+  category?: string | null;
 }
 
 export default function ProductCard({ product }: { product: Product }) {
@@ -18,11 +19,12 @@ export default function ProductCard({ product }: { product: Product }) {
 
   let imageUrl: string | null = null;
   try {
-    const imgs = JSON.parse(product.images || '[]');
+    const imgs = JSON.parse(product.images || '[]') as string[];
     imageUrl = imgs[0] || null;
-  } catch {}
+  } catch { /* ignore */ }
 
   const isSoldOut = product.stock === 0;
+  const price = Number(product.price);
 
   return (
     <div
@@ -105,7 +107,7 @@ export default function ProductCard({ product }: { product: Product }) {
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
           <span style={{ fontSize: 15, fontWeight: 800, color: '#32B579' }}>
-            售价：¥{product.price.toFixed(2)}
+            售价：¥{price.toFixed(2)}
           </span>
           <span
             style={{

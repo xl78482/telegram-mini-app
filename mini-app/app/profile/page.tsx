@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import BottomNav from '../../components/BottomNav';
 import RechargeSheet from '../../components/RechargeSheet';
+import { apiFetch } from '../../lib/api-fetch';
 
 interface UserInfo {
   id: number;
@@ -10,7 +11,7 @@ interface UserInfo {
   username?: string | null;
   firstName?: string | null;
   lastName?: string | null;
-  balance: number;
+  balance: string | number;
 }
 
 export default function ProfilePage() {
@@ -19,8 +20,8 @@ export default function ProfilePage() {
   const [rechargeOpen, setRechargeOpen] = useState(false);
 
   useEffect(() => {
-    fetch('/api/user')
-      .then(r => r.json())
+    // 使用 apiFetch 自动携带 x-init-data
+    apiFetch<UserInfo>('/api/user')
       .then(data => { setUser(data); setLoading(false); })
       .catch(() => setLoading(false));
   }, []);
@@ -28,11 +29,11 @@ export default function ProfilePage() {
   const displayName = user
     ? [user.firstName, user.lastName].filter(Boolean).join(' ') || user.username || `用户${user.id}`
     : '-';
+  const balance = Number(user?.balance ?? 0);
 
   return (
     <div className="tg-page" style={{ background: '#F6F6F8' }}>
 
-      {/* 个人卡片 - 绿色渐变 */}
       <div style={{ padding: '16px 16px 0' }}>
         <div
           style={{
@@ -58,14 +59,12 @@ export default function ProfilePage() {
             </div>
           ) : (
             <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-              {/* 头像 */}
               <div
                 style={{
                   width: 60, height: 60, borderRadius: '50%',
                   background: 'rgba(255,255,255,0.22)',
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  flexShrink: 0,
-                  fontSize: 26, fontWeight: 800, color: 'white',
+                  flexShrink: 0, fontSize: 26, fontWeight: 800, color: 'white',
                 }}
               >
                 {displayName[0]?.toUpperCase() || '商'}
@@ -81,7 +80,6 @@ export default function ProfilePage() {
             </div>
           )}
 
-          {/* 余额展示 */}
           <div
             style={{
               marginTop: 20,
@@ -93,20 +91,15 @@ export default function ProfilePage() {
             <div>
               <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.72)', marginBottom: 4 }}>账户余额</div>
               <div style={{ fontSize: 28, fontWeight: 900, color: 'white' }}>
-                ¥{loading ? '--' : (user?.balance ?? 0).toFixed(2)}
+                ¥{loading ? '--' : balance.toFixed(2)}
               </div>
             </div>
             <button
               onClick={() => setRechargeOpen(true)}
               style={{
-                padding: '10px 20px',
-                borderRadius: 999,
-                background: 'white',
-                color: '#32B579',
-                border: 'none',
-                fontWeight: 800,
-                fontSize: 14,
-                cursor: 'pointer',
+                padding: '10px 20px', borderRadius: 999,
+                background: 'white', color: '#32B579',
+                border: 'none', fontWeight: 800, fontSize: 14, cursor: 'pointer',
               }}
             >
               + 充値
@@ -115,7 +108,6 @@ export default function ProfilePage() {
         </div>
       </div>
 
-      {/* 功能列表 */}
       <div style={{ margin: '16px 12px 0', background: 'white', borderRadius: 20, boxShadow: '0 1px 8px rgba(16,32,26,0.05)' }}>
         {[
           { icon: '📋', label: '我的订单', href: '/orders' },
@@ -145,11 +137,10 @@ export default function ProfilePage() {
 
       <BottomNav />
 
-      {/* 充値 Sheet */}
       <RechargeSheet
         isOpen={rechargeOpen}
         onClose={() => setRechargeOpen(false)}
-        currentBalance={user?.balance ?? 0}
+        currentBalance={balance}
       />
     </div>
   );

@@ -2,20 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import BottomNav from '../components/BottomNav';
-import ProductCard from '../components/ProductCard';
+import ProductCard, { type Product } from '../components/ProductCard';
 import EmptyState from '../components/EmptyState';
-
-interface Product {
-  id: number;
-  name: string;
-  description?: string | null;
-  price: number;
-  stock: number;
-  sales?: number;
-  images?: string;
-  isActive: boolean;
-  category?: string | null;
-}
 
 export default function HomePage() {
   const [products, setProducts] = useState<Product[]>([]);
@@ -26,8 +14,8 @@ export default function HomePage() {
   useEffect(() => {
     fetch('/api/products')
       .then(r => r.json())
-      .then(data => {
-        setProducts(Array.isArray(data) ? data : (data.products || []));
+      .then((data: Product[] | { products: Product[] }) => {
+        setProducts(Array.isArray(data) ? data : (data.products ?? []));
         setLoading(false);
       })
       .catch(() => {
@@ -58,7 +46,6 @@ export default function HomePage() {
             overflow: 'hidden',
           }}
         >
-          {/* 装饰光环 */}
           <div style={{
             position: 'absolute', top: -24, right: -24,
             width: 130, height: 130, borderRadius: '50%',
@@ -71,7 +58,6 @@ export default function HomePage() {
           }} />
 
           <div style={{ display: 'flex', alignItems: 'center', gap: 14, position: 'relative' }}>
-            {/* 店铺图标 */}
             <div
               style={{
                 width: 72, height: 72,
@@ -109,7 +95,7 @@ export default function HomePage() {
         </div>
       </div>
 
-      {/* ==================== 分类 + 商品卡片（叠在绿卡下方） ==================== */}
+      {/* ==================== 分类 + 商品卡片 ==================== */}
       <div
         style={{
           margin: '-20px 12px 0',
@@ -120,7 +106,6 @@ export default function HomePage() {
           zIndex: 2,
         }}
       >
-        {/* 分类标题行 */}
         <div
           style={{
             display: 'flex',
@@ -133,7 +118,6 @@ export default function HomePage() {
           <span style={{ fontSize: 13, color: '#8A9690' }}>共 {products.length} 件好物</span>
         </div>
 
-        {/* 分类 Pill 滚动 */}
         {categories.length > 1 && (
           <div
             className="no-scrollbar"
@@ -167,10 +151,8 @@ export default function HomePage() {
           </div>
         )}
 
-        {/* 分割线 */}
         <div style={{ height: 1, background: '#F3F4F6', margin: '0 16px' }} />
 
-        {/* 商品列表 */}
         <div style={{ padding: '12px 12px 16px' }}>
           {loading ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>

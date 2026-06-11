@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import BottomNav from '../../components/BottomNav';
 import EmptyState from '../../components/EmptyState';
+import { apiFetch } from '../../lib/api-fetch';
 
 const STATUS_TABS = [
   { key: 'ALL', label: '全部' },
@@ -23,6 +24,7 @@ const STATUS_MAP: Record<string, { label: string; bg: string; color: string }> =
 
 interface OrderItem {
   productName: string;
+  name?: string;
   quantity: number;
   price: string | number;
 }
@@ -44,10 +46,10 @@ export default function OrdersPage() {
   const [search, setSearch] = useState('');
 
   useEffect(() => {
-    fetch('/api/orders')
-      .then(r => r.json())
-      .then((data: Order[] | { orders: Order[] }) => {
-        setOrders(Array.isArray(data) ? data : (data.orders ?? []));
+    // 使用 apiFetch 自动携带 x-init-data
+    apiFetch<Order[]>('/api/orders')
+      .then(data => {
+        setOrders(Array.isArray(data) ? data : []);
         setLoading(false);
       })
       .catch(() => setLoading(false));
@@ -57,7 +59,8 @@ export default function OrdersPage() {
     if (activeStatus !== 'ALL' && o.status !== activeStatus) return false;
     if (search) {
       const idMatch = o.id?.toString().includes(search);
-      const nameMatch = o.items?.[0]?.productName?.includes(search);
+      // 兼容 productName 和 name 两个字段
+      const nameMatch = o.items?.[0]?.productName?.includes(search) || o.items?.[0]?.name?.includes(search);
       if (!idMatch && !nameMatch) return false;
     }
     return true;
@@ -65,8 +68,6 @@ export default function OrdersPage() {
 
   return (
     <div className="tg-page" style={{ background: '#F6F6F8' }}>
-
-      {/* 页面标题 */}
       <div style={{ padding: '16px 16px 12px', display: 'flex', alignItems: 'center' }}>
         <span style={{ fontSize: 22, fontWeight: 800, color: '#10201A' }}>我的订单</span>
       </div>
@@ -102,10 +103,7 @@ export default function OrdersPage() {
       </div>
 
       {/* 状态筛选 */}
-      <div
-        className="no-scrollbar"
-        style={{ display: 'flex', gap: 8, padding: '0 16px 14px', overflowX: 'auto' }}
-      >
+      <div className="no-scrollbar" style={{ display: 'flex', gap: 8, padding: '0 16px 14px', overflowX: 'auto' }}>
         {STATUS_TABS.map(tab => (
           <button
             key={tab.key}
@@ -143,6 +141,8 @@ export default function OrdersPage() {
             {filtered.map(order => {
               const status = STATUS_MAP[order.status] ?? { label: order.status, bg: '#F5F5F5', color: '#8A9690' };
               const firstItem = order.items?.[0];
+              // 兼容 productName 和 name
+              const displayName = firstItem?.productName || firstItem?.name || '';
               const amount = Number(order.totalAmount ?? order.total ?? 0);
               return (
                 <div
@@ -165,9 +165,9 @@ export default function OrdersPage() {
                       padding: '3px 10px', borderRadius: 999,
                     }}>{status.label}</span>
                   </div>
-                  {firstItem && (
+                  {displayName && (
                     <div style={{ fontWeight: 600, fontSize: 15, color: '#10201A', marginBottom: 6 }}>
-                      {firstItem.productName}
+                      {displayName}
                       {(order.items?.length ?? 0) > 1 && (
                         <span style={{ fontSize: 12, color: '#8A9690' }}> 等 {order.items?.length} 件</span>
                       )}

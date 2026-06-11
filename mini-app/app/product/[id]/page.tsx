@@ -3,16 +3,23 @@
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useBackButton } from '../../../hooks/use-back-button';
+import { apiFetch } from '../../../lib/api-fetch';
 
 interface Product {
   id: number;
   name: string;
   description?: string | null;
-  price: number;
+  price: string | number;
   stock: number;
   images?: string;
   isActive: boolean;
   category?: string | null;
+}
+
+interface CreateOrderResponse {
+  id?: number;
+  orderId?: number;
+  error?: string;
 }
 
 export default function ProductDetailPage() {
@@ -46,23 +53,24 @@ export default function ProductDetailPage() {
   const handleBuy = async () => {
     if (paying || !product) return;
     setPaying(true);
+    setPayResult(null);
     try {
-      const res = await fetch('/api/orders', {
+      // 使用 apiFetch 自动携带 x-init-data
+      // 请求体使用 { items: [...] } 与后端匹配
+      const data = await apiFetch<CreateOrderResponse>('/api/orders', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ productId: product.id, quantity: qty }),
+        body: JSON.stringify({
+          items: [{ productId: product.id, quantity: qty }],
+        }),
       });
-      const data = await res.json() as { orderId?: number; error?: string };
-      if (res.ok) {
-        closePayModal();
-        if (data.orderId) {
-          router.push(`/orders/${data.orderId}`);
-        }
-      } else {
-        setPayResult('购买失败: ' + (data.error ?? '未知错误'));
+      const orderId = data.id ?? data.orderId;
+      closePayModal();
+      if (orderId) {
+        router.push(`/orders/${orderId}`);
       }
-    } catch {
-      setPayResult('网络错误，请重试');
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : '未知错误';
+      setPayResult('购买失败: ' + msg);
     } finally {
       setPaying(false);
     }
@@ -86,32 +94,26 @@ export default function ProductDetailPage() {
   let images: string[] = [];
   try { images = JSON.parse(product.images ?? '[]') as string[]; } catch { images = []; }
 
-  const totalPrice = (product.price * qty).toFixed(2);
+  const price = Number(product.price);
+  const totalPrice = (price * qty).toFixed(2);
   const stockTagColor = product.stock > 0 ? '#8A9690' : '#E53E3E';
   const stockTagBg = product.stock > 0 ? '#F3F4F6' : '#FFF0F0';
 
   return (
     <div className="tg-page tg-content-top" style={{ background: '#F6F6F8' }}>
 
-      {/* 商品主图 */}
       {images.length > 0 ? (
         <img
           src={images[0]}
           alt={product.name}
-          style={{
-            width: '100%',
-            aspectRatio: '16/9',
-            objectFit: 'cover',
-          }}
+          style={{ width: '100%', aspectRatio: '16/9', objectFit: 'cover' }}
         />
       ) : (
-        <div
-          style={{
-            width: '100%', height: 200,
-            background: 'linear-gradient(135deg, #E8F7EE 0%, #d0edd8 100%)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-          }}
-        >
+        <div style={{
+          width: '100%', height: 200,
+          background: 'linear-gradient(135deg, #E8F7EE 0%, #d0edd8 100%)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+        }}>
           <svg width="56" height="56" viewBox="0 0 24 24" fill="none">
             <rect x="3" y="5" width="18" height="14" rx="2" stroke="#32B579" strokeWidth="1.5" />
             <circle cx="9" cy="10" r="2" stroke="#32B579" strokeWidth="1.5" />
@@ -120,7 +122,6 @@ export default function ProductDetailPage() {
         </div>
       )}
 
-      {/* 商品信息卡 */}
       <div style={{ margin: '-16px 12px 0', position: 'relative', zIndex: 2 }}>
         <div style={{ background: 'white', borderRadius: 24, padding: '20px 18px', boxShadow: '0 2px 12px rgba(16,32,26,0.07)' }}>
           {product.category && (
@@ -142,7 +143,7 @@ export default function ProductDetailPage() {
           )}
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <span style={{ fontSize: 24, fontWeight: 900, color: '#32B579' }}>
-              ¥{product.price.toFixed(2)}
+              ¥{price.toFixed(2)}
             </span>
             <span style={{ fontSize: 12, background: stockTagBg, color: stockTagColor, padding: '4px 12px', borderRadius: 999 }}>
               {product.stock > 0 ? `库存 ${product.stock}` : '售罄'}
@@ -151,7 +152,6 @@ export default function ProductDetailPage() {
         </div>
       </div>
 
-      {/* 数量选择 */}
       {product.stock > 0 && (
         <div style={{ margin: '12px 12px 0' }}>
           <div style={{ background: 'white', borderRadius: 18, padding: '16px 18px', boxShadow: '0 2px 8px rgba(16,32,26,0.05)' }}>
@@ -195,12 +195,10 @@ export default function ProductDetailPage() {
       <div
         style={{
           position: 'fixed', bottom: 0, left: 0, right: 0,
-          background: 'white',
-          borderTop: '1px solid #ECEEF0',
+          background: 'white', borderTop: '1px solid #ECEEF0',
           padding: '12px 16px',
           paddingBottom: 'max(16px, var(--tg-safe-area-inset-bottom, env(safe-area-inset-bottom, 16px)))',
-          display: 'flex', alignItems: 'center', gap: 14,
-          zIndex: 90,
+          display: 'flex', alignItems: 'center', gap: 14, zIndex: 90,
         }}
       >
         <div>
@@ -211,11 +209,9 @@ export default function ProductDetailPage() {
           onClick={openPayModal}
           disabled={product.stock === 0}
           style={{
-            flex: 1, padding: '14px',
-            borderRadius: 999,
+            flex: 1, padding: '14px', borderRadius: 999,
             background: product.stock === 0 ? '#CCDBD5' : '#32B579',
-            color: 'white', border: 'none',
-            fontWeight: 700, fontSize: 16,
+            color: 'white', border: 'none', fontWeight: 700, fontSize: 16,
             cursor: product.stock === 0 ? 'not-allowed' : 'pointer',
           }}
         >
@@ -274,8 +270,7 @@ export default function ProductDetailPage() {
               onClick={handleBuy}
               disabled={paying}
               style={{
-                width: '100%', padding: '16px',
-                borderRadius: 999, border: 'none',
+                width: '100%', padding: '16px', borderRadius: 999, border: 'none',
                 background: paying ? '#CCDBD5' : '#32B579',
                 color: 'white', fontWeight: 700, fontSize: 16,
                 cursor: paying ? 'not-allowed' : 'pointer',
