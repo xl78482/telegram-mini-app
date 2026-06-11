@@ -20,6 +20,7 @@ export default function ProductDetailPage() {
   const [buying, setBuying] = useState(false)
   const [userBalance, setUserBalance] = useState('0.00')
   const [toast, setToast] = useState('')
+  const [error, setError] = useState('')
 
   useEffect(() => {
     Promise.all([
@@ -38,10 +39,14 @@ export default function ProductDetailPage() {
 
   async function handleBuy() {
     if (!product || buying) return
+    setError('')
     if (payMethod === 'balance') {
       const bal = Number(userBalance)
       const need = Number(product.price) * qty
-      if (bal < need) { showToast('余额不足，请充値余额！'); return }
+      if (bal < need) {
+        setError('余额不足，请充值余额！')
+        return
+      }
       setShowConfirm(true)
       return
     }
@@ -76,40 +81,48 @@ export default function ProductDetailPage() {
     <div style={{ background: '#F6F6F8', minHeight: '100dvh' }}>
       <AppHeader title="商品详情" showBack />
 
-      {/* Toast */}
+      {/* Toast 提示 */}
       {toast && (
         <div style={{
-          position: 'fixed', top: 'calc(90px + env(safe-area-inset-top))',
+          position: 'fixed',
+          top: 'calc(90px + env(safe-area-inset-top))',
           left: '50%', transform: 'translateX(-50%)',
           background: 'rgba(16,32,26,0.88)', color: '#fff',
-          padding: '10px 20px', borderRadius: 999,
+          padding: '10px 22px', borderRadius: 999,
           fontSize: 13, fontWeight: 600, zIndex: 300,
           whiteSpace: 'nowrap', maxWidth: 280, textAlign: 'center',
+          animation: 'slideUp 0.2s ease',
         }}>{toast}</div>
       )}
 
       <div style={{
-        padding: `calc(80px + env(safe-area-inset-top) + 16px) 20px calc(90px + env(safe-area-inset-bottom))`,
-        display: 'flex', flexDirection: 'column', gap: 12,
+        paddingTop: 'calc(80px + env(safe-area-inset-top) + 16px)',
+        paddingBottom: 'calc(90px + env(safe-area-inset-bottom))',
+        paddingLeft: 20,
+        paddingRight: 20,
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 12,
       }}>
         {loading ? (
           <>
             <div className="skeleton" style={{ height: 220, borderRadius: 24 }} />
             <div className="skeleton" style={{ height: 120, borderRadius: 24 }} />
+            <div className="skeleton" style={{ height: 80, borderRadius: 24 }} />
             <div className="skeleton" style={{ height: 100, borderRadius: 24 }} />
           </>
         ) : !product ? (
-          <div style={{ textAlign: 'center', color: '#8A9690', paddingTop: 60, fontSize: 15 }}>商品不存在</div>
+          <div style={{ textAlign: 'center', color: '#8A9690', paddingTop: 80, fontSize: 15 }}>商品不存在</div>
         ) : (
           <>
-            {/* 商品大图 */}
+            {/* 商品大图卡片 */}
             <div style={{ background: '#fff', borderRadius: 24, boxShadow: '0 2px 14px rgba(0,0,0,0.065)', overflow: 'hidden' }}>
               <div style={{ width: '100%', aspectRatio: '16/9', position: 'relative', background: '#F0FAF5' }}>
                 {thumb ? (
                   <Image src={thumb} alt={product.name} fill style={{ objectFit: 'cover' }} unoptimized />
                 ) : (
-                  <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#B0D8C4' }}>
-                    <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1">
+                  <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="#B0D8C4" strokeWidth="1">
                       <path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/>
                       <polyline points="3.27 6.96 12 12.01 20.73 6.96"/>
                       <line x1="12" y1="22.08" x2="12" y2="12"/>
@@ -118,16 +131,16 @@ export default function ProductDetailPage() {
                 )}
               </div>
               <div style={{ padding: '16px 18px' }}>
-                <h1 style={{ fontSize: 19, fontWeight: 800, color: '#10201A', marginBottom: 4 }}>{product.name}</h1>
+                <h1 style={{ fontSize: 19, fontWeight: 800, color: '#10201A' }}>{product.name}</h1>
               </div>
             </div>
 
-            {/* 价格库存卡片 */}
-            <div style={{ background: '#fff', borderRadius: 24, boxShadow: '0 2px 14px rgba(0,0,0,0.065)', padding: '16px 18px' }}>
+            {/* 价格库存 */}
+            <div style={{ background: '#fff', borderRadius: 24, boxShadow: '0 2px 14px rgba(0,0,0,0.065)', padding: '18px 18px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div>
                   <p style={{ fontSize: 12, color: '#8A9690', marginBottom: 4 }}>售价</p>
-                  <p style={{ fontSize: 26, fontWeight: 800, color: '#2EA66F' }}>¥{Number(product.price).toFixed(2)}</p>
+                  <p style={{ fontSize: 28, fontWeight: 800, color: '#2EA66F', letterSpacing: -0.5 }}>¥{Number(product.price).toFixed(2)}</p>
                 </div>
                 <div style={{ textAlign: 'right' }}>
                   <p style={{ fontSize: 12, color: '#8A9690', marginBottom: 4 }}>库存</p>
@@ -145,7 +158,7 @@ export default function ProductDetailPage() {
             <div style={{ background: '#fff', borderRadius: 24, boxShadow: '0 2px 14px rgba(0,0,0,0.065)', padding: '16px 18px' }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <span style={{ fontSize: 15, fontWeight: 600, color: '#10201A' }}>购买数量</span>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 0 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
                   <button
                     onClick={() => setQty(q => Math.max(1, q - 1))}
                     style={{
@@ -153,7 +166,9 @@ export default function ProductDetailPage() {
                       background: qty <= 1 ? '#F2F2F4' : '#E8F7F0',
                       color: qty <= 1 ? '#C0C0C0' : '#2EA66F',
                       border: 'none', cursor: qty <= 1 ? 'default' : 'pointer',
-                      fontSize: 20, fontWeight: 300, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      fontSize: 22, fontWeight: 300,
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      WebkitTapHighlightColor: 'transparent',
                     }}
                   >−</button>
                   <span style={{ width: 44, textAlign: 'center', fontSize: 18, fontWeight: 700, color: '#10201A' }}>{qty}</span>
@@ -165,7 +180,9 @@ export default function ProductDetailPage() {
                       background: qty >= product.stock ? '#F2F2F4' : '#E8F7F0',
                       color: qty >= product.stock ? '#C0C0C0' : '#2EA66F',
                       border: 'none', cursor: qty >= product.stock ? 'default' : 'pointer',
-                      fontSize: 20, fontWeight: 300, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      fontSize: 22, fontWeight: 300,
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      WebkitTapHighlightColor: 'transparent',
                     }}
                   >+</button>
                 </div>
@@ -190,15 +207,31 @@ export default function ProductDetailPage() {
             {product.description && (
               <div style={{ background: '#fff', borderRadius: 24, boxShadow: '0 2px 14px rgba(0,0,0,0.065)', padding: '16px 18px' }}>
                 <h3 style={{ fontSize: 15, fontWeight: 700, color: '#10201A', marginBottom: 12 }}>商品说明</h3>
-                <p style={{ fontSize: 14, color: '#6B7C73', lineHeight: 1.75 }}>{product.description}</p>
+                <p style={{ fontSize: 14, color: '#6B7C73', lineHeight: 1.8, maxWidth: 'unset' }}>{product.description}</p>
               </div>
             )}
 
             {/* 支付方式 */}
             <div style={{ background: '#fff', borderRadius: 24, boxShadow: '0 2px 14px rgba(0,0,0,0.065)', padding: '16px 18px' }}>
               <h3 style={{ fontSize: 15, fontWeight: 700, color: '#10201A', marginBottom: 14 }}>支付方式</h3>
-              <PaymentMethodTabs value={payMethod} onChange={setPayMethod} />
+              <PaymentMethodTabs value={payMethod} onChange={(v) => { setPayMethod(v); setError('') }} />
             </div>
+
+            {/* 余额不足提示 */}
+            {error && (
+              <div style={{
+                background: '#FFF3E8', borderRadius: 14,
+                padding: '12px 16px',
+                display: 'flex', alignItems: 'center', gap: 8,
+              }}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#E07B2A" strokeWidth="2.2">
+                  <circle cx="12" cy="12" r="10"/>
+                  <line x1="12" y1="8" x2="12" y2="12"/>
+                  <line x1="12" y1="16" x2="12.01" y2="16"/>
+                </svg>
+                <p style={{ fontSize: 13, color: '#E07B2A', fontWeight: 600 }}>{error}</p>
+              </div>
+            )}
           </>
         )}
       </div>
@@ -209,18 +242,22 @@ export default function ProductDetailPage() {
           position: 'fixed', bottom: 0, left: 0, right: 0,
           background: 'rgba(255,255,255,0.96)',
           backdropFilter: 'blur(12px)',
+          WebkitBackdropFilter: 'blur(12px)',
           borderTop: '1px solid rgba(0,0,0,0.06)',
           padding: `14px 20px calc(14px + env(safe-area-inset-bottom))`,
           zIndex: 50,
           maxWidth: '28rem', margin: '0 auto',
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-            <span style={{ fontSize: 13, color: '#8A9690' }}>已选 <b style={{ color: '#10201A' }}>{qty}</b> 件</span>
+            <div style={{ display: 'flex', flexDirection: 'column' }}>
+              <span style={{ fontSize: 11, color: '#8A9690' }}>已选</span>
+              <span style={{ fontSize: 18, fontWeight: 800, color: '#10201A', lineHeight: 1 }}>{qty} 件</span>
+            </div>
             <button
               className="btn-primary"
               onClick={handleBuy}
               disabled={isSoldOut || buying}
-              style={{ flex: 1, height: 50, fontSize: 16 }}
+              style={{ flex: 1, height: 52, fontSize: 16 }}
             >
               {buying ? '下单中...' : isSoldOut ? '已售罄' : '立即购买'}
             </button>
@@ -228,23 +265,51 @@ export default function ProductDetailPage() {
         </div>
       )}
 
-      {/* 余额支付弹窗 */}
+      {/* 余额支付确认弹窗 */}
       {showConfirm && product && (
-        <div className="modal-overlay" onClick={() => setShowConfirm(false)}>
+        <div
+          className="modal-overlay"
+          onClick={() => setShowConfirm(false)}
+        >
           <div className="modal-sheet" onClick={e => e.stopPropagation()}>
+            {/* 标题 */}
+            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 16 }}>
+              <div style={{
+                width: 52, height: 52, borderRadius: '50%',
+                background: '#E8F7F0',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}>
+                <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#2EA66F" strokeWidth="1.8">
+                  <rect x="2" y="7" width="20" height="14" rx="2" ry="2"/>
+                  <path d="M16 21V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v16"/>
+                </svg>
+              </div>
+            </div>
             <h3 style={{ fontSize: 18, fontWeight: 800, color: '#10201A', marginBottom: 10, textAlign: 'center' }}>确认支付</h3>
-            <p style={{ fontSize: 14, color: '#6B7C73', textAlign: 'center', marginBottom: 24, lineHeight: 1.7 }}>
-              是否使用余额支付？<br/>
-              当前余额 <b style={{ color: '#2EA66F' }}>¥{Number(userBalance).toFixed(2)}</b><br/>
-              本次支付 <b style={{ color: '#2EA66F' }}>¥{(Number(product.price) * qty).toFixed(2)}</b>
+            <p style={{ fontSize: 14, color: '#6B7C73', textAlign: 'center', marginBottom: 8, lineHeight: 1.75 }}>
+              是否使用余额支付？
             </p>
+            <div style={{
+              background: '#F6F6F8', borderRadius: 14,
+              padding: '12px 16px', marginBottom: 24,
+            }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
+                <span style={{ fontSize: 13, color: '#8A9690' }}>当前余额</span>
+                <span style={{ fontSize: 14, fontWeight: 700, color: '#10201A' }}>¥{Number(userBalance).toFixed(2)}</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span style={{ fontSize: 13, color: '#8A9690' }}>本次支付</span>
+                <span style={{ fontSize: 14, fontWeight: 800, color: '#2EA66F' }}>¥{(Number(product.price) * qty).toFixed(2)}</span>
+              </div>
+            </div>
             <div style={{ display: 'flex', gap: 12 }}>
               <button
                 onClick={() => setShowConfirm(false)}
                 style={{
-                  flex: 1, padding: '14px', borderRadius: 999,
+                  flex: 1, padding: '14px 0', borderRadius: 999,
                   background: '#F2F2F4', color: '#6B7C73',
                   border: 'none', fontSize: 15, fontWeight: 700, cursor: 'pointer',
+                  WebkitTapHighlightColor: 'transparent',
                 }}
               >取消支付</button>
               <button
