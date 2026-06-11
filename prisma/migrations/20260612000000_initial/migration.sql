@@ -134,7 +134,6 @@ CREATE TABLE `payment_records` (
     INDEX `payment_records_user_id_idx`(`user_id`),
     INDEX `payment_records_channel_status_idx`(`channel`, `status`),
     INDEX `payment_records_external_order_no_idx`(`external_order_no`),
-    UNIQUE INDEX `payment_records_order_id_channel_key`(`order_id`, `channel`),
     PRIMARY KEY (`id`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
@@ -184,7 +183,6 @@ CREATE TABLE `delivery_logs` (
     INDEX `delivery_logs_order_id_idx`(`order_id`),
     INDEX `delivery_logs_user_id_idx`(`user_id`),
     INDEX `delivery_logs_card_secret_id_idx`(`card_secret_id`),
-    UNIQUE INDEX `delivery_logs_card_secret_id_key`(`card_secret_id`),
     PRIMARY KEY (`id`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
