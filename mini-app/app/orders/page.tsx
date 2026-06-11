@@ -21,9 +21,24 @@ const STATUS_MAP: Record<string, { label: string; bg: string; color: string }> =
   CANCELLED:  { label: '已取消', bg: '#F5F5F5', color: '#8A9690' },
 };
 
+interface OrderItem {
+  productName: string;
+  quantity: number;
+  price: string | number;
+}
+
+interface Order {
+  id: number;
+  status: string;
+  createdAt: string;
+  totalAmount?: string | number;
+  total?: string | number;
+  items?: OrderItem[];
+}
+
 export default function OrdersPage() {
   const router = useRouter();
-  const [orders, setOrders] = useState<any[]>([]);
+  const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeStatus, setActiveStatus] = useState('ALL');
   const [search, setSearch] = useState('');
@@ -31,13 +46,20 @@ export default function OrdersPage() {
   useEffect(() => {
     fetch('/api/orders')
       .then(r => r.json())
-      .then(data => { setOrders(Array.isArray(data) ? data : (data.orders || [])); setLoading(false); })
+      .then((data: Order[] | { orders: Order[] }) => {
+        setOrders(Array.isArray(data) ? data : (data.orders ?? []));
+        setLoading(false);
+      })
       .catch(() => setLoading(false));
   }, []);
 
   const filtered = orders.filter(o => {
     if (activeStatus !== 'ALL' && o.status !== activeStatus) return false;
-    if (search && !o.id?.toString().includes(search) && !o.items?.[0]?.productName?.includes(search)) return false;
+    if (search) {
+      const idMatch = o.id?.toString().includes(search);
+      const nameMatch = o.items?.[0]?.productName?.includes(search);
+      if (!idMatch && !nameMatch) return false;
+    }
     return true;
   });
 
@@ -70,6 +92,12 @@ export default function OrdersPage() {
               fontSize: 14, color: '#10201A', background: 'transparent',
             }}
           />
+          {search && (
+            <button
+              onClick={() => setSearch('')}
+              style={{ border: 'none', background: 'none', cursor: 'pointer', color: '#8A9690', fontSize: 16 }}
+            >×</button>
+          )}
         </div>
       </div>
 
@@ -113,8 +141,9 @@ export default function OrdersPage() {
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             {filtered.map(order => {
-              const status = STATUS_MAP[order.status] || { label: order.status, bg: '#F5F5F5', color: '#8A9690' };
+              const status = STATUS_MAP[order.status] ?? { label: order.status, bg: '#F5F5F5', color: '#8A9690' };
               const firstItem = order.items?.[0];
+              const amount = Number(order.totalAmount ?? order.total ?? 0);
               return (
                 <div
                   key={order.id}
@@ -125,8 +154,8 @@ export default function OrdersPage() {
                     boxShadow: '0 1px 8px rgba(16,32,26,0.06)',
                     transition: 'transform 0.15s ease',
                   }}
-                  onTouchStart={e => e.currentTarget.style.transform = 'scale(0.985)'}
-                  onTouchEnd={e => e.currentTarget.style.transform = 'scale(1)'}
+                  onTouchStart={e => { e.currentTarget.style.transform = 'scale(0.985)'; }}
+                  onTouchEnd={e => { e.currentTarget.style.transform = 'scale(1)'; }}
                 >
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
                     <span style={{ fontSize: 13, color: '#8A9690' }}>订单 #{order.id}</span>
@@ -139,7 +168,9 @@ export default function OrdersPage() {
                   {firstItem && (
                     <div style={{ fontWeight: 600, fontSize: 15, color: '#10201A', marginBottom: 6 }}>
                       {firstItem.productName}
-                      {order.items?.length > 1 && <span style={{ fontSize: 12, color: '#8A9690' }}> 等 {order.items.length} 件</span>}
+                      {(order.items?.length ?? 0) > 1 && (
+                        <span style={{ fontSize: 12, color: '#8A9690' }}> 等 {order.items?.length} 件</span>
+                      )}
                     </div>
                   )}
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -147,7 +178,7 @@ export default function OrdersPage() {
                       {new Date(order.createdAt).toLocaleDateString('zh-CN')}
                     </span>
                     <span style={{ fontSize: 16, fontWeight: 800, color: '#32B579' }}>
-                      ¥{(order.totalAmount ?? order.total ?? 0).toFixed(2)}
+                      ¥{amount.toFixed(2)}
                     </span>
                   </div>
                 </div>
