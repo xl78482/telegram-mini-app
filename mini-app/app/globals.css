@@ -2,6 +2,10 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ============================================
+   Telegram Mini App 全屏适配样式
+   ============================================ */
+
 :root {
   --color-bg: #F6F6F8;
   --color-primary: #32B579;
@@ -17,50 +21,98 @@
   --shadow-card: 0 2px 12px rgba(16,32,26,0.07);
 }
 
-* {
+/* 重置，确保页面能平铺 */
+*, *::before, *::after {
   box-sizing: border-box;
   -webkit-tap-highlight-color: transparent;
 }
 
-html, body {
+html {
+  margin: 0;
+  padding: 0;
+  /* 防止 iOS 回弹滚动导致白屏 */
+  overscroll-behavior: none;
+}
+
+body {
+  margin: 0;
+  padding: 0;
   background: var(--color-bg);
   color: var(--color-text);
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', sans-serif;
-  min-height: 100dvh;
   -webkit-font-smoothing: antialiased;
+  overscroll-behavior: none;
+  /* 优先使用 Telegram 提供的可视区域高度 */
+  min-height: var(--tg-viewport-stable-height, 100dvh);
 }
 
-/* Safe area padding */
-.safe-area-bottom {
-  padding-bottom: calc(76px + env(safe-area-inset-bottom, 0px));
+/* ============================================
+   Telegram 全屏布局容器
+   ============================================ */
+
+/* 应用根容器：游见可视区域，适配左右安全区 */
+.tg-app {
+  min-height: var(--tg-viewport-stable-height, 100dvh);
+  background: var(--color-bg);
+  padding-left: max(0px, var(--tg-safe-area-inset-left, 0px));
+  padding-right: max(0px, var(--tg-safe-area-inset-right, 0px));
+  position: relative;
 }
 
-.pb-nav {
-  padding-bottom: calc(76px + env(safe-area-inset-bottom, 0px));
+/* 页面容器：预留底部导航空间 */
+.tg-page {
+  min-height: var(--tg-viewport-stable-height, 100dvh);
+  padding-bottom: calc(96px + max(0px, var(--tg-safe-area-inset-bottom, env(safe-area-inset-bottom, 0px))));
 }
 
-/* Scrollbar hide */
-.no-scrollbar::-webkit-scrollbar {
-  display: none;
-}
-.no-scrollbar {
-  -ms-overflow-style: none;
-  scrollbar-width: none;
+/* 底部导航栏 */
+.tg-bottom-nav {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: auto;
+  min-height: 64px;
+  background: white;
+  border-top: 1px solid #ECEEF0;
+  display: flex;
+  align-items: flex-start;
+  z-index: 100;
+  padding-top: 8px;
+  padding-bottom: max(12px, var(--tg-safe-area-inset-bottom, env(safe-area-inset-bottom, 12px)));
 }
 
-/* Green gradient for cards */
+/* 底部 Sheet 弹窗 */
+.tg-bottom-sheet {
+  padding-bottom: max(24px, var(--tg-safe-area-inset-bottom, env(safe-area-inset-bottom, 24px)));
+}
+
+/* 页面内容顶部安全区 */
+.tg-content-top {
+  padding-top: max(0px, var(--tg-content-safe-area-inset-top, var(--tg-safe-area-inset-top, 0px)));
+}
+
+/* ============================================
+   工具类
+   ============================================ */
+
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
 .gradient-green {
-  background: linear-gradient(135deg, #2EA66F 0%, #32B579 50%, #3DC97F 100%);
+  background: linear-gradient(135deg, #2EA66F 0%, #32B579 55%, #3DC97F 100%);
 }
 
-/* Card base */
+/* ============================================
+   内建UI组件样式
+   ============================================ */
+
 .card {
   background: var(--color-white);
   border-radius: var(--radius-card);
   box-shadow: var(--shadow-card);
 }
 
-/* Pill button base */
 .btn-pill {
   border-radius: var(--radius-btn);
   padding: 10px 24px;
@@ -80,10 +132,7 @@ html, body {
   color: white;
 }
 
-.btn-primary:active {
-  background: var(--color-primary-dark);
-  transform: scale(0.98);
-}
+.btn-primary:active { background: var(--color-primary-dark); transform: scale(0.98); }
 
 .btn-outline-green {
   background: transparent;
@@ -91,12 +140,9 @@ html, body {
   border: 1.5px solid var(--color-primary);
 }
 
-.btn-outline-green:active {
-  background: var(--color-primary-light);
-  transform: scale(0.98);
-}
+.btn-outline-green:active { background: var(--color-primary-light); transform: scale(0.98); }
 
-/* Shimmer loading skeleton */
+/* Shimmer 骨架屏 */
 @keyframes shimmer {
   0% { background-position: -400px 0; }
   100% { background-position: 400px 0; }
@@ -109,24 +155,8 @@ html, body {
   border-radius: 8px;
 }
 
-/* Bottom nav */
-.bottom-nav {
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  height: calc(76px + env(safe-area-inset-bottom, 0px));
-  background: white;
-  border-top: 1px solid #ECEEF0;
-  display: flex;
-  align-items: flex-start;
-  z-index: 100;
-  padding-top: 8px;
-  padding-bottom: env(safe-area-inset-bottom, 0px);
-}
-
-/* Status colors */
+/* 状态颜色 */
 .status-completed { background: #E8F7EE; color: #2EA66F; }
-.status-pending { background: #FFF4E5; color: #F59E0B; }
+.status-pending   { background: #FFF4E5; color: #F59E0B; }
 .status-processing { background: #EEF3FF; color: #4F74E8; }
 .status-cancelled { background: #F5F5F5; color: #8A9690; }
