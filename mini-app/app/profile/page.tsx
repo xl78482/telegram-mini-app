@@ -1,5 +1,5 @@
 'use client';
-/* BUILD: 2026-06-11-v3 */
+/* BUILD: 2026-06-11-v5 */
 
 import { useState, useEffect } from 'react';
 import BottomNav from '../../components/BottomNav';
@@ -36,12 +36,14 @@ export default function ProfilePage() {
 
       {/* 顶部绿色头图——内边距使用 var(--app-content-top) */}
       <div style={{ padding: 'var(--app-content-top) var(--page-padding-x) 0' }}>
-        <div style={{
-          borderRadius: 28,
-          background: 'linear-gradient(135deg, #27A065 0%, #32B579 100%)',
-          padding: '20px 20px 24px',
-          position: 'relative', overflow: 'hidden',
-        }}>
+        <div
+          style={{
+            borderRadius: 28,
+            background: 'linear-gradient(135deg, #27A065 0%, #32B579 100%)',
+            padding: '20px 20px 24px',
+            position: 'relative', overflow: 'hidden',
+          }}
+        >
           <div style={{
             position: 'absolute', top: -20, right: -20,
             width: 110, height: 110, borderRadius: '50%',
@@ -138,7 +140,12 @@ export default function ProfilePage() {
         </div>
       </div>
 
-      <RechargeSheet open={rechargeOpen} onClose={() => setRechargeOpen(false)} />
+      {/* ✅ 修复：prop 名从 open 改为 isOpen，与 RechargeSheet interface 一致 */}
+      <RechargeSheet
+        isOpen={rechargeOpen}
+        onClose={() => setRechargeOpen(false)}
+        currentBalance={balance}
+      />
       <BottomNav />
     </div>
   );
