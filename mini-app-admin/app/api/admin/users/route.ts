@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { requireAuth } from '@/lib/auth'
+import { Prisma } from '@prisma/client'
 
 export async function GET() {
   try {
@@ -25,19 +26,52 @@ export async function PATCH(req: NextRequest) {
   try {
     await requireAuth()
     const { userId, amount, note } = await req.json()
-    if (!userId || isNaN(Number(amount))) {
-      return NextResponse.json({ error: '参数错误' }, { status: 400 })
+    const id = Number(userId)
+    const amountDecimal = new Prisma.Decimal(String(amount ?? ''))
+
+    if (!Number.isInteger(id) || id < 1 || amountDecimal.lte(0)) {
+      return NextResponse.json({ error: '参数错误，充值金额必须大于 0' }, { status: 400 })
     }
+
     const updated = await prisma.$transaction(async tx => {
-      await tx.rechargeLog.create({ data: { userId, amount: Number(amount), note: note ?? '管理员手动充値' } })
-      return tx.user.update({
-        where: { id: userId },
-        data: { balance: { increment: Number(amount) } },
+      const userBefore = await tx.user.findUnique({
+        where: { id },
+        select: { balance: true },
       })
+      if (!userBefore) throw new Error('用户不存在')
+
+      const userAfter = await tx.user.update({
+        where: { id },
+        data: { balance: { increment: amountDecimal } },
+        select: { balance: true },
+      })
+
+      await tx.rechargeLog.create({
+        data: {
+          userId: id,
+          amount: amountDecimal,
+          note: note?.trim() || '管理员手动充值',
+        },
+      })
+
+      await tx.balanceLog.create({
+        data: {
+          userId: id,
+          type: 'ADMIN_ADD',
+          amount: amountDecimal,
+          balanceBefore: userBefore.balance,
+          balanceAfter: userAfter.balance,
+          note: note?.trim() || '管理员手动充值',
+        },
+      })
+
+      return userAfter
     })
+
     return NextResponse.json({ balance: updated.balance.toString() })
   } catch (e) {
     console.error('[PATCH /api/admin/users]', e)
-    return NextResponse.json({ error: '充値失败' }, { status: 500 })
+    const msg = e instanceof Error ? e.message : '充值失败'
+    return NextResponse.json({ error: msg }, { status: 500 })
   }
 }
