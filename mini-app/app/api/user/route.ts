@@ -16,7 +16,7 @@ export async function GET(req: NextRequest) {
     const tgUser = parseTelegramUser(initData) as TelegramUser | null
     if (!tgUser?.id) return NextResponse.json({ error: '未登录' }, { status: 401 })
 
-    const tgId = BigInt(tgUser.id)
+const tgId = BigInt(tgUser.id)
     const user = await prisma.user.upsert({
       where: { tgId },
       update: {
@@ -31,6 +31,7 @@ export async function GET(req: NextRequest) {
         firstName: tgUser.first_name ?? null,
         lastName: tgUser.last_name ?? null,
         avatarUrl: tgUser.photo_url ?? null,
+        balance: 0,
       },
     })
 

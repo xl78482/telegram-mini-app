@@ -8,8 +8,22 @@ export async function GET(req: NextRequest) {
     const tgUser = parseTelegramUser(initData)
     if (!tgUser) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-    const user = await prisma.user.findUnique({ where: { tgId: BigInt(tgUser.id) } })
-    if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 })
+    // upsert：确保用户存在
+    const user = await prisma.user.upsert({
+      where: { tgId: BigInt(tgUser.id) },
+      update: {
+        username: tgUser.username ?? null,
+        firstName: tgUser.first_name ?? null,
+        lastName: tgUser.last_name ?? null,
+      },
+      create: {
+        tgId: BigInt(tgUser.id),
+        username: tgUser.username ?? null,
+        firstName: tgUser.first_name ?? null,
+        lastName: tgUser.last_name ?? null,
+        balance: 0,
+      },
+    })
 
     return NextResponse.json({ balance: user.balance.toString() })
   } catch (e) {
