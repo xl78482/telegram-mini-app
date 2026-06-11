@@ -9,19 +9,45 @@ const VALID_PAYMENT_METHODS = ['BALANCE', 'EPUSDT', 'OKPAY'] as const
 type PaymentMethod = typeof VALID_PAYMENT_METHODS[number]
 
 type OrderWithItems = Prisma.OrderGetPayload<{ include: { items: true } }>
+type TelegramUser = {
+  id: number | string
+  username?: string
+  first_name?: string
+  last_name?: string
+  photo_url?: string
+}
 
 function genOrderNo() {
   return Date.now().toString(36).toUpperCase() + Math.random().toString(36).slice(2, 6).toUpperCase()
 }
 
+async function getOrCreateTelegramUser(tgUser: TelegramUser) {
+  const tgId = BigInt(tgUser.id)
+  return prisma.user.upsert({
+    where: { tgId },
+    update: {
+      username: tgUser.username ?? null,
+      firstName: tgUser.first_name ?? null,
+      lastName: tgUser.last_name ?? null,
+      avatarUrl: tgUser.photo_url ?? null,
+    },
+    create: {
+      tgId,
+      username: tgUser.username ?? null,
+      firstName: tgUser.first_name ?? null,
+      lastName: tgUser.last_name ?? null,
+      avatarUrl: tgUser.photo_url ?? null,
+    },
+  })
+}
+
 export async function GET(req: NextRequest) {
   try {
     const initData = req.headers.get('x-init-data') ?? ''
-    const tgUser = parseTelegramUser(initData)
-    if (!tgUser) return NextResponse.json({ error: '未登录' }, { status: 401 })
+    const tgUser = parseTelegramUser(initData) as TelegramUser | null
+    if (!tgUser?.id) return NextResponse.json({ error: '未登录' }, { status: 401 })
 
-    const user = await prisma.user.findUnique({ where: { tgId: BigInt(tgUser.id) } })
-    if (!user) return NextResponse.json({ error: '用户不存在' }, { status: 404 })
+    const user = await getOrCreateTelegramUser(tgUser)
 
     // 先过期检查
     await expirePendingOrders()
@@ -64,8 +90,8 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     const initData = req.headers.get('x-init-data') ?? ''
-    const tgUser = parseTelegramUser(initData)
-    if (!tgUser) return NextResponse.json({ error: '未登录' }, { status: 401 })
+    const tgUser = parseTelegramUser(initData) as TelegramUser | null
+    if (!tgUser?.id) return NextResponse.json({ error: '未登录' }, { status: 401 })
 
     const body = await req.json() as {
       items: { productId: number; specId?: number | null; quantity: number }[]
@@ -96,8 +122,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: '规格 ID 不正确' }, { status: 400 })
     }
 
-    const user = await prisma.user.findUnique({ where: { tgId: BigInt(tgUser.id) } })
-    if (!user) return NextResponse.json({ error: '用户不存在' }, { status: 404 })
+    const user = await getOrCreateTelegramUser(tgUser)
 
     // 查商品
     const product = await prisma.product.findUnique({
