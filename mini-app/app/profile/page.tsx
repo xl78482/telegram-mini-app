@@ -140,7 +140,7 @@ export default function ProfilePage() {
         </div>
       </div>
 
-      <RechargeSheet open={rechargeOpen} onClose={() => setRechargeOpen(false)} />
+      <RechargeSheet isOpen={rechargeOpen} onClose={() => setRechargeOpen(false)} />
       <BottomNav />
     </div>
   );
