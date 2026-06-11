@@ -1,153 +1,237 @@
-'use client'
-import { useEffect, useState } from 'react'
-import { ProductCard } from '@/components/ProductCard'
-import { BottomNav } from '@/components/bottom-nav'
-import { AppHeader } from '@/components/AppHeader'
-import { EmptyState } from '@/components/EmptyState'
-import { useInitData } from '@/hooks/use-init-data'
+'use client';
+
+import { useState, useEffect } from 'react';
+import AppHeader from '../components/AppHeader';
+import BottomNav from '../components/BottomNav';
+import ProductCard from '../components/ProductCard';
+import EmptyState from '../components/EmptyState';
 
 interface Product {
-  id: number; name: string; price: string; images?: string | null; stock: number; description?: string | null; soldCount?: number
+  id: number;
+  name: string;
+  description?: string | null;
+  price: number;
+  stock: number;
+  sales?: number;
+  images?: string;
+  isActive: boolean;
+  category?: string | null;
 }
 
-const CATEGORIES = ['全部', '虚拟账号', '充値卡', '软件授权', '其他']
-
-export default function ShopPage() {
-  const initData = useInitData()
-  const [products, setProducts] = useState<Product[]>([])
-  const [loading, setLoading] = useState(true)
-  const [category, setCategory] = useState('全部')
-
-  useEffect(() => {
-    if (initData) {
-      fetch('/api/auth', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ initData }) }).catch(() => {})
-    }
-  }, [initData])
+export default function HomePage() {
+  const [products, setProducts] = useState<Product[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [activeCategory, setActiveCategory] = useState('全部');
 
   useEffect(() => {
     fetch('/api/products')
       .then(r => r.json())
-      .then(data => { if (Array.isArray(data)) setProducts(data) })
-      .catch(() => {})
-      .finally(() => setLoading(false))
-  }, [])
+      .then(data => {
+        setProducts(Array.isArray(data) ? data : data.products || []);
+        setLoading(false);
+      })
+      .catch(() => {
+        setError('加载失败，请重试');
+        setLoading(false);
+      });
+  }, []);
+
+  // Build categories
+  const categories = ['全部', ...Array.from(new Set(products.map(p => p.category).filter(Boolean) as string[]))];
+  const filtered = activeCategory === '全部' ? products : products.filter(p => p.category === activeCategory);
 
   return (
     <div style={{ background: '#F6F6F8', minHeight: '100dvh' }}>
-      <AppHeader title="财神商盟" subtitle="小程序" />
+      <AppHeader />
 
-      <div className="page-content" style={{ padding: 0, paddingTop: 'calc(80px + env(safe-area-inset-top))' }}>
-        {/* 绿色店铺信息卡片 */}
+      <div className="pb-nav">
+        {/* Shop Info Card */}
         <div style={{ padding: '20px 20px 0' }}>
-          <div className="green-gradient" style={{
-            borderRadius: 28,
-            padding: '22px 20px 28px',
-            color: '#fff',
-            position: 'relative',
-            overflow: 'hidden',
-            minHeight: 168,
-          }}>
-            {/* 装饰圆 */}
-            <div style={{ position: 'absolute', right: -40, top: -45, width: 160, height: 160, borderRadius: '50%', background: 'rgba(255,255,255,0.08)' }} />
-            <div style={{ position: 'absolute', right: 50, bottom: -60, width: 130, height: 130, borderRadius: '50%', background: 'rgba(255,255,255,0.05)' }} />
-            <div style={{ position: 'absolute', left: -30, bottom: -30, width: 100, height: 100, borderRadius: '50%', background: 'rgba(255,255,255,0.04)' }} />
+          <div
+            style={{
+              borderRadius: 28,
+              background: 'linear-gradient(135deg, #2EA66F 0%, #32B579 55%, #3DC97F 100%)',
+              padding: '24px 24px 28px',
+              position: 'relative',
+              overflow: 'hidden',
+            }}
+          >
+            {/* Decorative circles */}
+            <div style={{
+              position: 'absolute', top: -20, right: -20,
+              width: 120, height: 120, borderRadius: '50%',
+              background: 'rgba(255,255,255,0.08)',
+            }} />
+            <div style={{
+              position: 'absolute', bottom: -30, right: 40,
+              width: 80, height: 80, borderRadius: '50%',
+              background: 'rgba(255,255,255,0.06)',
+            }} />
 
             <div style={{ display: 'flex', alignItems: 'center', gap: 16, position: 'relative' }}>
-              {/* 店铺图标 */}
-              <div style={{
-                width: 68, height: 68, borderRadius: 20,
-                background: 'rgba(255,255,255,0.22)',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                flexShrink: 0,
-              }}>
-                <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.95)" strokeWidth="1.6">
-                  <path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/>
-                  <line x1="3" y1="6" x2="21" y2="6"/>
-                  <path d="M16 10a4 4 0 01-8 0"/>
+              {/* Shop Icon */}
+              <div
+                style={{
+                  width: 64,
+                  height: 64,
+                  borderRadius: 18,
+                  background: 'rgba(255,255,255,0.2)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  flexShrink: 0,
+                }}
+              >
+                <svg width="34" height="34" viewBox="0 0 24 24" fill="none">
+                  <path d="M3 9H21L19.5 4H4.5L3 9Z" fill="rgba(255,255,255,0.9)" />
+                  <path d="M3 9V20H21V9" stroke="white" strokeWidth="1.5" strokeLinejoin="round" />
+                  <path d="M9 9V12C9 13.6569 10.3431 15 12 15C13.6569 15 15 13.6569 15 12V9" stroke="white" strokeWidth="1.5" />
                 </svg>
               </div>
 
-              {/* 店铺信息 */}
-              <div style={{ flex: 1 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 5 }}>
-                  <span style={{ fontSize: 21, fontWeight: 800 }}>数字商城</span>
-                  <span style={{
-                    background: 'rgba(255,255,255,0.28)',
-                    fontSize: 10, padding: '2px 9px',
-                    borderRadius: 999, fontWeight: 600,
-                    display: 'flex', alignItems: 'center', gap: 3,
-                  }}>
-                    <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
-                      <path d="M22 11.08V12a10 10 0 11-5.93-9.14"/>
-                      <polyline points="22 4 12 14.01 9 11.01"/>
-                    </svg>
+              {/* Shop Info */}
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+                  <span style={{ fontSize: 20, fontWeight: 800, color: 'white' }}>数字商城</span>
+                  <span
+                    style={{
+                      fontSize: 11,
+                      fontWeight: 600,
+                      color: '#32B579',
+                      background: 'white',
+                      padding: '2px 8px',
+                      borderRadius: 999,
+                    }}
+                  >
                     已认证
                   </span>
                 </div>
-                <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.82)' }}>精选数字商品 · 自动发货</p>
+                <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.85)' }}>
+                  精选数字商品 · 自动发货
+                </div>
               </div>
             </div>
           </div>
         </div>
 
-        {/* 商品分类 + 商品列表（白色卡片覆盖在绿色下方） */}
-        <div style={{
-          margin: '-16px 16px 0',
-          background: '#fff',
-          borderRadius: 24,
-          boxShadow: '0 2px 14px rgba(0,0,0,0.065)',
-          padding: '20px 16px 8px',
-          position: 'relative',
-          zIndex: 1,
-          paddingBottom: 'calc(76px + env(safe-area-inset-bottom) + 16px)',
-        }}>
-          {/* 分类标题行 */}
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
-            <span style={{ fontSize: 15, fontWeight: 700, color: '#10201A' }}>商品分类</span>
-            <span style={{ fontSize: 12, color: '#8A9690' }}>共 {products.length} 件好物</span>
+        {/* Category + Products Card */}
+        <div
+          style={{
+            margin: '-16px 16px 0',
+            background: 'white',
+            borderRadius: 24,
+            boxShadow: '0 2px 16px rgba(16,32,26,0.08)',
+            position: 'relative',
+            zIndex: 2,
+          }}
+        >
+          {/* Category Header */}
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              padding: '18px 18px 12px',
+            }}
+          >
+            <span style={{ fontWeight: 700, fontSize: 16, color: '#10201A' }}>商品分类</span>
+            <span style={{ fontSize: 13, color: '#8A9690' }}>共 {products.length} 件好物</span>
           </div>
 
-          {/* 横向分类 */}
-          <div className="category-scroll" style={{ marginBottom: 18 }}>
-            {CATEGORIES.map(cat => (
-              <button
-                key={cat}
-                onClick={() => setCategory(cat)}
-                style={{
-                  flexShrink: 0,
-                  padding: '7px 18px',
-                  borderRadius: 999,
-                  fontSize: 13,
-                  fontWeight: category === cat ? 700 : 500,
-                  border: 'none',
-                  cursor: 'pointer',
-                  background: category === cat ? '#2EA66F' : '#F2F2F4',
-                  color: category === cat ? '#fff' : '#6B7C73',
-                  transition: 'all 0.18s',
-                }}
-              >{cat}</button>
-            ))}
-          </div>
+          {/* Category Pills */}
+          {categories.length > 1 && (
+            <div
+              className="no-scrollbar"
+              style={{
+                display: 'flex',
+                gap: 8,
+                padding: '0 18px 14px',
+                overflowX: 'auto',
+              }}
+            >
+              {categories.map(cat => (
+                <button
+                  key={cat}
+                  onClick={() => setActiveCategory(cat)}
+                  style={{
+                    padding: '6px 16px',
+                    borderRadius: 999,
+                    fontSize: 13,
+                    fontWeight: activeCategory === cat ? 700 : 500,
+                    background: activeCategory === cat ? '#32B579' : '#F3F4F6',
+                    color: activeCategory === cat ? 'white' : '#6B7C73',
+                    border: 'none',
+                    cursor: 'pointer',
+                    whiteSpace: 'nowrap',
+                    flexShrink: 0,
+                  }}
+                >
+                  {cat}
+                </button>
+              ))}
+            </div>
+          )}
 
-          {/* 商品列表 */}
-          <div>
+          {/* Divider */}
+          <div style={{ height: 1, background: '#F3F4F6', margin: '0 18px' }} />
+
+          {/* Products */}
+          <div style={{ padding: '14px 14px 14px' }}>
             {loading ? (
-              [...Array(3)].map((_, i) => (
-                <div key={i} className="skeleton" style={{ height: 100, marginBottom: 10, borderRadius: 20 }} />
-              ))
-            ) : products.length === 0 ? (
+              // Skeleton
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                {[1, 2, 3].map(i => (
+                  <div key={i} style={{ display: 'flex', gap: 14, alignItems: 'center', padding: '4px 0' }}>
+                    <div className="skeleton" style={{ width: 68, height: 68, borderRadius: 16, flexShrink: 0 }} />
+                    <div style={{ flex: 1 }}>
+                      <div className="skeleton" style={{ height: 16, width: '60%', marginBottom: 8 }} />
+                      <div className="skeleton" style={{ height: 13, width: '80%', marginBottom: 10 }} />
+                      <div className="skeleton" style={{ height: 13, width: '40%' }} />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : error ? (
+              <EmptyState
+                title="加载失败"
+                description={error}
+                action={
+                  <button
+                    onClick={() => window.location.reload()}
+                    style={{
+                      padding: '10px 24px',
+                      borderRadius: 999,
+                      background: '#32B579',
+                      color: 'white',
+                      border: 'none',
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    重新加载
+                  </button>
+                }
+              />
+            ) : filtered.length === 0 ? (
               <EmptyState
                 title="暂无商品"
                 description="商家还没有上架商品，敬请期待"
               />
             ) : (
-              products.map(p => <ProductCard key={p.id} product={p} />)
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                {filtered.map(product => (
+                  <ProductCard key={product.id} product={product} />
+                ))}
+              </div>
             )}
           </div>
         </div>
+
+        <div style={{ height: 20 }} />
       </div>
 
       <BottomNav />
     </div>
-  )
+  );
 }
