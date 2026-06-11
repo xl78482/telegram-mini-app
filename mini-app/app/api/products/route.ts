@@ -5,20 +5,11 @@ export async function GET() {
   try {
     const products = await prisma.product.findMany({
       where: { isActive: true },
-      orderBy: [{ sortOrder: 'asc' }, { createdAt: 'desc' }],
-      select: {
-        id: true,
-        name: true,
-        description: true,
-        price: true,
-        stock: true,
-        images: true,
-      },
+      orderBy: { sortOrder: 'asc' },
     })
-    return NextResponse.json(products.map(p => ({
-      ...p,
-      price: p.price.toString(),
-    })))
+    return NextResponse.json(
+      products.map(p => ({ ...p, price: p.price.toString() }))
+    )
   } catch (e) {
     console.error(e)
     return NextResponse.json({ error: 'Server error' }, { status: 500 })

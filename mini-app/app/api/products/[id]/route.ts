@@ -3,7 +3,7 @@ import { prisma } from '@/lib/prisma'
 
 export async function GET(_: NextRequest, { params }: { params: { id: string } }) {
   try {
-    const product = await prisma.product.findUnique({
+    const product = await prisma.product.findFirst({
       where: { id: Number(params.id), isActive: true },
     })
     if (!product) return NextResponse.json({ error: 'Not found' }, { status: 404 })

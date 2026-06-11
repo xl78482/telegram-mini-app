@@ -1,17 +1,13 @@
-import type { Metadata, Viewport } from 'next'
+import type { Metadata } from 'next'
+import { Inter } from 'next/font/google'
 import './globals.css'
+import { Providers } from '@/components/providers'
+
+const inter = Inter({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
-  title: 'Shop',
+  title: 'Mini Shop',
   description: 'Telegram Mini App Shop',
-}
-
-export const viewport: Viewport = {
-  width: 'device-width',
-  initialScale: 1,
-  maximumScale: 1,
-  userScalable: false,
-  viewportFit: 'cover',
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
@@ -20,7 +16,13 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <head>
         <script src="https://telegram.org/js/telegram-web-app.js" />
       </head>
-      <body>{children}</body>
+      <body className={`${inter.className} bg-[#000000] text-white antialiased`}>
+        <Providers>
+          <div className="mx-auto max-w-md min-h-screen pb-20">
+            {children}
+          </div>
+        </Providers>
+      </body>
     </html>
   )
 }
