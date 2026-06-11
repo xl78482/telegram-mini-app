@@ -3,9 +3,12 @@ import { prisma } from '@/lib/prisma'
 import { parseTelegramUser } from '@/lib/telegram'
 import { syncProductStock } from '@/lib/stock'
 import { expirePendingOrders } from '@/lib/order-lock'
+import type { Prisma } from '@prisma/client'
 
 const VALID_PAYMENT_METHODS = ['BALANCE', 'EPUSDT', 'OKPAY'] as const
 type PaymentMethod = typeof VALID_PAYMENT_METHODS[number]
+
+type OrderWithItems = Prisma.OrderGetPayload<{ include: { items: true } }>
 
 function genOrderNo() {
   return Date.now().toString(36).toUpperCase() + Math.random().toString(36).slice(2, 6).toUpperCase()
@@ -29,7 +32,7 @@ export async function GET(req: NextRequest) {
       orderBy: { createdAt: 'desc' },
     })
 
-    return NextResponse.json(orders.map(o => ({
+    return NextResponse.json(orders.map((o: OrderWithItems) => ({
       id: o.id,
       orderNo: o.orderNo,
       status: o.status,
@@ -40,6 +43,7 @@ export async function GET(req: NextRequest) {
       cancelReason: o.cancelReason,
       createdAt: o.createdAt,
       updatedAt: o.updatedAt,
+      paidAt: o.paidAt,
       items: o.items.map(i => ({
         id: i.id,
         productId: i.productId,
@@ -49,7 +53,6 @@ export async function GET(req: NextRequest) {
         specName: i.specName,
         quantity: i.quantity,
         price: i.price.toString(),
-        cardKeys: [],
       })),
     })))
   } catch (e) {

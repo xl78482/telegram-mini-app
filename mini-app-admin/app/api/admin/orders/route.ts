@@ -8,13 +8,19 @@ export async function GET(req: NextRequest) {
   const status = searchParams.get('status')
   const orders = await prisma.order.findMany({
     where: status ? { status: status as never } : undefined,
-    include: { user: true, items: { include: { product: true } } },
+    include: {
+      user: true,
+      items: { include: { product: true } },
+      deliveryLogs: true,
+    },
     orderBy: { createdAt: 'desc' },
     take: 100,
   })
   return NextResponse.json(orders.map(o => ({
     ...o,
     totalAmount: o.totalAmount.toString(),
+    usdtAmount: o.usdtAmount?.toString() ?? null,
     items: o.items.map(i => ({ ...i, price: i.price.toString() })),
+    deliveryCount: o.deliveryLogs.length,
   })))
 }
