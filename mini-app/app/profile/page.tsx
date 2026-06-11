@@ -20,7 +20,6 @@ export default function ProfilePage() {
   const [rechargeOpen, setRechargeOpen] = useState(false);
 
   useEffect(() => {
-    // 使用 apiFetch 自动携带 x-init-data
     apiFetch<UserInfo>('/api/user')
       .then(data => { setUser(data); setLoading(false); })
       .catch(() => setLoading(false));
@@ -34,7 +33,8 @@ export default function ProfilePage() {
   return (
     <div className="tg-page" style={{ background: '#F6F6F8' }}>
 
-      <div style={{ padding: '16px 16px 0' }}>
+      {/* 顶部绿色头图区域 */}
+      <div style={{ padding: 'calc(var(--app-content-top) + 16px) 16px 0' }}>
         <div
           style={{
             borderRadius: 28,
@@ -51,97 +51,97 @@ export default function ProfilePage() {
 
           {loading ? (
             <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-              <div className="skeleton" style={{ width: 60, height: 60, borderRadius: '50%', background: 'rgba(255,255,255,0.2)' }} />
-              <div>
-                <div className="skeleton" style={{ height: 20, width: 100, marginBottom: 8, background: 'rgba(255,255,255,0.2)' }} />
-                <div className="skeleton" style={{ height: 14, width: 70, background: 'rgba(255,255,255,0.15)' }} />
+              <div className="skeleton" style={{ width: 56, height: 56, borderRadius: '50%', flexShrink: 0 }} />
+              <div style={{ flex: 1 }}>
+                <div className="skeleton" style={{ height: 16, width: '50%', marginBottom: 8 }} />
+                <div className="skeleton" style={{ height: 12, width: '30%' }} />
               </div>
             </div>
           ) : (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-              <div
-                style={{
-                  width: 60, height: 60, borderRadius: '50%',
-                  background: 'rgba(255,255,255,0.22)',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  flexShrink: 0, fontSize: 26, fontWeight: 800, color: 'white',
-                }}
-              >
-                {displayName[0]?.toUpperCase() || '商'}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 14, position: 'relative' }}>
+              <div style={{
+                width: 56, height: 56, borderRadius: '50%',
+                background: 'rgba(255,255,255,0.25)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontSize: 24, flexShrink: 0,
+              }}>
+                {displayName !== '-' ? displayName.charAt(0).toUpperCase() : '👤'}
               </div>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 20, fontWeight: 800, color: 'white', marginBottom: 4 }}>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 18, fontWeight: 800, color: 'white', marginBottom: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                   {displayName}
                 </div>
                 {user?.username && (
-                  <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.78)' }}>@{user.username}</div>
+                  <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.8)' }}>@{user.username}</div>
                 )}
               </div>
             </div>
           )}
-
-          <div
-            style={{
-              marginTop: 20,
-              background: 'rgba(255,255,255,0.15)',
-              borderRadius: 16, padding: '16px',
-              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-            }}
-          >
-            <div>
-              <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.72)', marginBottom: 4 }}>账户余额</div>
-              <div style={{ fontSize: 28, fontWeight: 900, color: 'white' }}>
-                ¥{loading ? '--' : balance.toFixed(2)}
-              </div>
-            </div>
-            <button
-              onClick={() => setRechargeOpen(true)}
-              style={{
-                padding: '10px 20px', borderRadius: 999,
-                background: 'white', color: '#32B579',
-                border: 'none', fontWeight: 800, fontSize: 14, cursor: 'pointer',
-              }}
-            >
-              + 充値
-            </button>
-          </div>
         </div>
       </div>
 
-      <div style={{ margin: '16px 12px 0', background: 'white', borderRadius: 20, boxShadow: '0 1px 8px rgba(16,32,26,0.05)' }}>
-        {[
-          { icon: '📋', label: '我的订单', href: '/orders' },
-          { icon: '💬', label: '联系客服', href: null },
-          { icon: 'ℹ️', label: '关于店铺', href: null },
-        ].map((item, i, arr) => (
-          <div
-            key={item.label}
-            onClick={() => item.href && (window.location.href = item.href)}
+      {/* 余额卡片 */}
+      <div style={{ padding: '16px 16px 0' }}>
+        <div style={{
+          background: 'white', borderRadius: 20,
+          padding: '20px 20px',
+          boxShadow: '0 2px 12px rgba(16,32,26,0.07)',
+        }}>
+          <div style={{ fontSize: 13, color: '#8A9690', marginBottom: 6 }}>账户余额</div>
+          {loading ? (
+            <div className="skeleton" style={{ height: 32, width: '40%' }} />
+          ) : (
+            <div style={{ fontSize: 32, fontWeight: 900, color: '#10201A' }}>
+              <span style={{ fontSize: 18, fontWeight: 600, color: '#8A9690' }}>¥</span>
+              {balance.toFixed(2)}
+            </div>
+          )}
+          <button
+            onClick={() => setRechargeOpen(true)}
             style={{
-              display: 'flex', alignItems: 'center', gap: 14,
-              padding: '16px 18px',
-              borderBottom: i < arr.length - 1 ? '1px solid #F3F4F6' : 'none',
-              cursor: item.href ? 'pointer' : 'default',
+              marginTop: 16, width: '100%', padding: '12px',
+              borderRadius: 999, border: 'none',
+              background: '#32B579', color: 'white',
+              fontWeight: 700, fontSize: 15, cursor: 'pointer',
             }}
           >
-            <span style={{ fontSize: 20 }}>{item.icon}</span>
-            <span style={{ fontSize: 15, fontWeight: 600, color: '#10201A', flex: 1 }}>{item.label}</span>
-            {item.href && (
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
-                <path d="M9 6L15 12L9 18" stroke="#CCDBD5" strokeWidth="2.2" strokeLinecap="round" />
-              </svg>
-            )}
-          </div>
-        ))}
+            立即充値
+          </button>
+        </div>
       </div>
 
-      <BottomNav />
+      {/* 功能卡片列表 */}
+      <div style={{ padding: '16px 16px 0' }}>
+        <div style={{ background: 'white', borderRadius: 20, overflow: 'hidden', boxShadow: '0 2px 12px rgba(16,32,26,0.07)' }}>
+          {[
+            { icon: '📋', label: '我的订单', href: '/orders' },
+            { icon: '💬', label: '联系客服', href: '#' },
+            { icon: 'ℹ️', label: '关于店铺', href: '#' },
+          ].map((item, idx, arr) => (
+            <a
+              key={item.label}
+              href={item.href}
+              style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                padding: '16px 20px',
+                borderBottom: idx < arr.length - 1 ? '1px solid #F3F4F6' : 'none',
+                textDecoration: 'none', color: '#10201A',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                <span style={{ fontSize: 20 }}>{item.icon}</span>
+                <span style={{ fontWeight: 600, fontSize: 15 }}>{item.label}</span>
+              </div>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                <path d="M9 18L15 12L9 6" stroke="#8A9690" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </a>
+          ))}
+        </div>
+      </div>
 
-      <RechargeSheet
-        isOpen={rechargeOpen}
-        onClose={() => setRechargeOpen(false)}
-        currentBalance={balance}
-      />
+      <RechargeSheet open={rechargeOpen} onClose={() => setRechargeOpen(false)} />
+      <BottomNav />
     </div>
   );
 }

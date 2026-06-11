@@ -3,62 +3,83 @@ import { prisma } from '@/lib/prisma'
 import { requireAuth } from '@/lib/auth'
 
 export async function GET() {
-  await requireAuth()
-  const products = await prisma.product.findMany({
-    orderBy: { sortOrder: 'asc' },
-    include: {
-      specs: {
-        where: { isActive: true },
-        orderBy: { sortOrder: 'asc' },
-        select: { id: true, productId: true, name: true, price: true, stock: true, sortOrder: true, isActive: true },
+  try {
+    await requireAuth()
+    const products = await prisma.product.findMany({
+      orderBy: { sortOrder: 'asc' },
+      include: {
+        specs: {
+          where: { isActive: true },
+          orderBy: { sortOrder: 'asc' },
+          select: { id: true, productId: true, name: true, price: true, stock: true, sortOrder: true, isActive: true },
+        },
+        cardSecrets: { select: { status: true } },
       },
-      cardSecrets: { select: { status: true } },
-    },
-  })
+    })
 
-  const result = products.map(p => {
-    const cards = p.cardSecrets
-    const cardStats = {
-      total: cards.length,
-      available: cards.filter(c => c.status === 'AVAILABLE').length,
-      locked: cards.filter(c => c.status === 'LOCKED').length,
-      sold: cards.filter(c => c.status === 'SOLD').length,
-      disabled: cards.filter(c => c.status === 'DISABLED').length,
-    }
-    return {
-      id: p.id,
-      name: p.name,
-      description: p.description,
-      price: p.price.toString(),
-      stock: p.stock,
-      category: p.category,
-      sales: p.sales,
-      images: p.images,
-      sortOrder: p.sortOrder,
-      isActive: p.isActive,
-      createdAt: p.createdAt,
-      updatedAt: p.updatedAt,
-      specs: p.specs.map(s => ({ ...s, price: s.price.toString() })),
-      cardStats,
-    }
-  })
-
-  return NextResponse.json(result)
+    const result = products.map(p => {
+      const cards = p.cardSecrets
+      const cardStats = {
+        total: cards.length,
+        available: cards.filter(c => c.status === 'AVAILABLE').length,
+        locked: cards.filter(c => c.status === 'LOCKED').length,
+        sold: cards.filter(c => c.status === 'SOLD').length,
+        disabled: cards.filter(c => c.status === 'DISABLED').length,
+      }
+      return {
+        id: p.id, name: p.name, description: p.description,
+        price: p.price.toString(), stock: p.stock, category: p.category,
+        sales: p.sales, images: p.images, sortOrder: p.sortOrder,
+        isActive: p.isActive, createdAt: p.createdAt, updatedAt: p.updatedAt,
+        specs: p.specs.map(s => ({ ...s, price: s.price.toString() })),
+        cardStats,
+      }
+    })
+    return NextResponse.json(result)
+  } catch (e) {
+    console.error('[GET /api/admin/products]', e)
+    return NextResponse.json({ error: '商品列表获取失败，请检查数据库连接' }, { status: 500 })
+  }
 }
 
 export async function POST(req: NextRequest) {
-  await requireAuth()
   try {
+    await requireAuth()
     const body = await req.json()
-    if (!body.name) return NextResponse.json({ error: '商品名必填' }, { status: 400 })
+
+    if (!body.name?.trim()) {
+      return NextResponse.json({ error: '商品名必填' }, { status: 400 })
+    }
+
+    const price = Number(body.price)
+    if (isNaN(price) || price < 0) {
+      return NextResponse.json({ error: '价格必须为有效数字' }, { status: 400 })
+    }
+
+    // images: 空字符串保存为 null
+    let images: string | null = null
+    const rawImages = body.images
+    if (rawImages && typeof rawImages === 'string' && rawImages.trim()) {
+      // 支持两种格式：JSON 数组 或 多行文本（每行一个 URL）
+      const trimmed = rawImages.trim()
+      if (trimmed.startsWith('[')) {
+        // 已是 JSON 数组格式
+        try { JSON.parse(trimmed); images = trimmed } catch { images = null }
+      } else {
+        // 多行 URL 转成 JSON 数组
+        const urls = trimmed.split('\n').map((u: string) => u.trim()).filter(Boolean)
+        images = JSON.stringify(urls)
+      }
+    }
+
     const product = await prisma.product.create({
       data: {
-        name: body.name,
-        description: body.description ?? null,
-        price: Number(body.price ?? 0),
+        name: body.name.trim(),
+        description: body.description?.trim() || null,
+        price,
         stock: Number(body.stock ?? 0),
-        images: body.images ?? null,
-        category: body.category ?? null,
+        images,
+        category: body.category?.trim() || null,
         sortOrder: Number(body.sortOrder ?? 0),
         isActive: body.isActive ?? true,
       },
@@ -68,7 +89,8 @@ export async function POST(req: NextRequest) {
       { status: 201 }
     )
   } catch (e) {
-    console.error(e)
-    return NextResponse.json({ error: 'Server error' }, { status: 500 })
+    console.error('[POST /api/admin/products]', e)
+    const msg = e instanceof Error ? e.message : '未知错误'
+    return NextResponse.json({ error: `商品创建失败: ${msg}` }, { status: 500 })
   }
 }

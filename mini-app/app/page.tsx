@@ -35,8 +35,8 @@ export default function HomePage() {
   return (
     <div className="tg-page" style={{ background: '#F6F6F8' }}>
 
-      {/* ==================== 店铺信息卡片 ==================== */}
-      <div style={{ padding: '16px 16px 0' }}>
+      {/* 店铺信息卡片 */}
+      <div style={{ padding: 'calc(var(--app-content-top) + 16px) 16px 0' }}>
         <div
           style={{
             borderRadius: 28,
@@ -95,7 +95,7 @@ export default function HomePage() {
         </div>
       </div>
 
-      {/* ==================== 分类 + 商品卡片 ==================== */}
+      {/* 分类 + 商品卡片 */}
       <div
         style={{
           margin: '-20px 12px 0',
@@ -118,79 +118,39 @@ export default function HomePage() {
           <span style={{ fontSize: 13, color: '#8A9690' }}>共 {products.length} 件好物</span>
         </div>
 
-        {categories.length > 1 && (
-          <div
-            className="no-scrollbar"
-            style={{
-              display: 'flex', gap: 8,
-              padding: '0 16px 14px',
-              overflowX: 'auto',
-            }}
-          >
-            {categories.map(cat => (
-              <button
-                key={cat}
-                onClick={() => setActiveCategory(cat)}
-                style={{
-                  padding: '6px 16px',
-                  borderRadius: 999,
-                  fontSize: 13,
-                  fontWeight: activeCategory === cat ? 700 : 500,
-                  background: activeCategory === cat ? '#32B579' : '#F3F4F6',
-                  color: activeCategory === cat ? 'white' : '#6B7C73',
-                  border: 'none',
-                  cursor: 'pointer',
-                  whiteSpace: 'nowrap',
-                  flexShrink: 0,
-                  lineHeight: '22px',
-                }}
-              >
-                {cat}
-              </button>
-            ))}
-          </div>
-        )}
+        {/* 分类标签 */}
+        <div className="no-scrollbar" style={{ overflowX: 'auto', display: 'flex', gap: 8, padding: '0 16px 14px' }}>
+          {categories.map(cat => (
+            <button
+              key={cat}
+              onClick={() => setActiveCategory(cat)}
+              style={{
+                padding: '6px 16px', borderRadius: 999, fontSize: 13,
+                fontWeight: activeCategory === cat ? 700 : 500,
+                background: activeCategory === cat ? '#32B579' : '#F3F4F6',
+                color: activeCategory === cat ? 'white' : '#6B7C73',
+                border: 'none', cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0,
+              }}
+            >
+              {cat}
+            </button>
+          ))}
+        </div>
 
-        <div style={{ height: 1, background: '#F3F4F6', margin: '0 16px' }} />
-
-        <div style={{ padding: '12px 12px 16px' }}>
+        {/* 商品列表 */}
+        <div style={{ padding: '0 12px 16px' }}>
           {loading ? (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-              {[1, 2, 3].map(i => (
-                <div key={i} style={{ display: 'flex', gap: 14, alignItems: 'center', padding: '8px 4px' }}>
-                  <div className="skeleton" style={{ width: 72, height: 72, borderRadius: 16, flexShrink: 0 }} />
-                  <div style={{ flex: 1 }}>
-                    <div className="skeleton" style={{ height: 15, width: '55%', marginBottom: 8 }} />
-                    <div className="skeleton" style={{ height: 13, width: '80%', marginBottom: 10 }} />
-                    <div className="skeleton" style={{ height: 13, width: '35%' }} />
-                  </div>
-                </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+              {[1, 2, 3, 4].map(i => (
+                <div key={i} className="skeleton" style={{ height: 200, borderRadius: 20 }} />
               ))}
             </div>
           ) : error ? (
-            <EmptyState
-              title="加载失败"
-              description={error}
-              action={
-                <button
-                  onClick={() => window.location.reload()}
-                  style={{
-                    padding: '10px 24px', borderRadius: 999,
-                    background: '#32B579', color: 'white',
-                    border: 'none', fontWeight: 600, cursor: 'pointer',
-                  }}
-                >
-                  重新加载
-                </button>
-              }
-            />
+            <div style={{ padding: '32px 0', textAlign: 'center', color: '#E53935', fontSize: 14 }}>{error}</div>
           ) : filtered.length === 0 ? (
-            <EmptyState
-              title="暂无商品"
-              description="商家还没有上架商品，敬请期待"
-            />
+            <EmptyState title="暂无商品" description="该分类暂无商品" />
           ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
               {filtered.map(product => (
                 <ProductCard key={product.id} product={product} />
               ))}
@@ -199,7 +159,6 @@ export default function HomePage() {
         </div>
       </div>
 
-      <div style={{ height: 12 }} />
       <BottomNav />
     </div>
   );

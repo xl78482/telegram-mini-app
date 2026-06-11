@@ -19,6 +19,19 @@
   --radius-card: 24px;
   --radius-btn: 999px;
   --shadow-card: 0 2px 12px rgba(16,32,26,0.07);
+
+  /* 全局安全区变量 — 兼容 Telegram 和 iOS 原生安全区 */
+  --app-safe-top: max(
+    env(safe-area-inset-top, 0px),
+    var(--tg-content-safe-area-inset-top, 0px),
+    var(--tg-safe-area-inset-top, 0px)
+  );
+  --app-safe-bottom: max(
+    env(safe-area-inset-bottom, 0px),
+    var(--tg-safe-area-inset-bottom, 0px)
+  );
+  /* 页面主体顶部需要颟外留出 8px 外边距 */
+  --app-content-top: max(var(--app-safe-top), 8px);
 }
 
 /* 重置，确保页面能平铺 */
@@ -30,7 +43,6 @@
 html {
   margin: 0;
   padding: 0;
-  /* 防止 iOS 回弹滚动导致白屏 */
   overscroll-behavior: none;
 }
 
@@ -42,7 +54,6 @@ body {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', sans-serif;
   -webkit-font-smoothing: antialiased;
   overscroll-behavior: none;
-  /* 优先使用 Telegram 提供的可视区域高度 */
   min-height: var(--tg-viewport-stable-height, 100dvh);
 }
 
@@ -50,7 +61,6 @@ body {
    Telegram 全屏布局容器
    ============================================ */
 
-/* 应用根容器：游见可视区域，适配左右安全区 */
 .tg-app {
   min-height: var(--tg-viewport-stable-height, 100dvh);
   background: var(--color-bg);
@@ -62,7 +72,7 @@ body {
 /* 页面容器：预留底部导航空间 */
 .tg-page {
   min-height: var(--tg-viewport-stable-height, 100dvh);
-  padding-bottom: calc(96px + max(0px, var(--tg-safe-area-inset-bottom, env(safe-area-inset-bottom, 0px))));
+  padding-bottom: calc(96px + var(--app-safe-bottom));
 }
 
 /* 底部导航栏 */
@@ -79,17 +89,22 @@ body {
   align-items: flex-start;
   z-index: 100;
   padding-top: 8px;
-  padding-bottom: max(12px, var(--tg-safe-area-inset-bottom, env(safe-area-inset-bottom, 12px)));
+  padding-bottom: max(12px, var(--app-safe-bottom));
 }
 
 /* 底部 Sheet 弹窗 */
 .tg-bottom-sheet {
-  padding-bottom: max(24px, var(--tg-safe-area-inset-bottom, env(safe-area-inset-bottom, 24px)));
+  padding-bottom: max(24px, var(--app-safe-bottom));
 }
 
-/* 页面内容顶部安全区 */
+/* 页面内容顶部安全区—使用统一变量 */
 .tg-content-top {
-  padding-top: max(0px, var(--tg-content-safe-area-inset-top, var(--tg-safe-area-inset-top, 0px)));
+  padding-top: var(--app-content-top);
+}
+
+/* 首页/订单/我的 页面顶部安全区，颟外加一层 padding */
+.tg-page-top {
+  padding-top: calc(var(--app-content-top) + 8px);
 }
 
 /* ============================================
@@ -104,7 +119,7 @@ body {
 }
 
 /* ============================================
-   内建UI组件样式
+   内建 UI 组件样式
    ============================================ */
 
 .card {

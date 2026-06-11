@@ -96,7 +96,8 @@ export default function OrdersPage() {
 
   return (
     <div className="tg-page" style={{ background: '#F6F6F8' }}>
-      <div style={{ padding: '16px 16px 12px', display: 'flex', alignItems: 'center' }}>
+      {/* 页面标题—避开安全区 */}
+      <div style={{ padding: 'calc(var(--app-content-top) + 12px) 16px 12px', display: 'flex', alignItems: 'center' }}>
         <span style={{ fontSize: 22, fontWeight: 800, color: '#10201A' }}>我的订单</span>
       </div>
 
@@ -214,10 +215,10 @@ export default function OrdersPage() {
                             cursor: cancelling === order.id ? 'not-allowed' : 'pointer',
                           }}
                         >
-                          {cancelling === order.id ? '取消中' : '取消订单'}
+                          {cancelling === order.id ? '...' : '取消'}
                         </button>
                       )}
-                      <span style={{ fontSize: 16, fontWeight: 800, color: '#32B579' }}>
+                      <span style={{ fontSize: 15, fontWeight: 800, color: '#32B579' }}>
                         ¥{amount.toFixed(2)}
                       </span>
                     </div>
@@ -228,6 +229,7 @@ export default function OrdersPage() {
           </div>
         )}
       </div>
+
       <BottomNav />
     </div>
   )
