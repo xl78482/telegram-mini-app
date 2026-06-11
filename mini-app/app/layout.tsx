@@ -13,10 +13,18 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <head>
         <script src="https://telegram.org/js/telegram-web-app.js" />
         <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+        <meta name="theme-color" content="#F6F6F8" />
       </head>
       <body style={{ background: '#F6F6F8', color: '#10201A' }}>
         <Providers>
-          <div style={{ margin: '0 auto', maxWidth: '28rem', minHeight: '100dvh', background: '#F6F6F8', position: 'relative' }}>
+          <div style={{
+            margin: '0 auto',
+            maxWidth: '28rem',
+            minHeight: '100dvh',
+            background: '#F6F6F8',
+            position: 'relative',
+            overflowX: 'hidden',
+          }}>
             {children}
           </div>
         </Providers>
