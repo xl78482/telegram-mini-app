@@ -17,8 +17,8 @@ export async function syncProductStock(
     data: { stock: productAvailable },
   })
 
-  // 同步规格库存
-  if (specId) {
+  // 同步规格库存；specId 可能为 null/undefined，无规格商品只同步 Product.stock。
+  if (specId != null) {
     const specAvailable = await prisma.cardSecret.count({
       where: { specId, status: 'AVAILABLE' },
     })
