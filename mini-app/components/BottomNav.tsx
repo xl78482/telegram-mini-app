@@ -49,7 +49,7 @@ export default function BottomNav() {
   };
 
   return (
-    <nav className="bottom-nav">
+    <nav className="tg-bottom-nav">
       {tabs.map(tab => {
         const active = isActive(tab.href);
         return (
@@ -62,14 +62,13 @@ export default function BottomNav() {
               flexDirection: 'column',
               alignItems: 'center',
               justifyContent: 'center',
-              gap: 4,
+              gap: 3,
               textDecoration: 'none',
-              paddingTop: 4,
             }}
           >
             <div
               style={{
-                padding: active ? '4px 14px' : '4px 8px',
+                padding: active ? '4px 16px' : '4px 8px',
                 borderRadius: 999,
                 background: active ? '#E8F7EE' : 'transparent',
                 transition: 'all 0.15s ease',
