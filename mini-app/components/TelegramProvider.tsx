@@ -1,11 +1,11 @@
 'use client';
-/* BUILD: 2026-06-11-v4 */
+/* BUILD: 2026-06-12-v5 */
 
 import { useEffect } from 'react';
 import { initTelegramWebApp } from '../lib/telegram/webapp';
 
 /**
- * 控制按钒区域保守尺寸——不依赖 Telegram 注入的 CSS 变量，直接用 JS API 读取实际尺寸
+ * 控制按鈕区域保守尺寸——不依赖 Telegram 注入的 CSS 变量，直接用 JS API 读取实际尺寸
  * 并手动写入 CSS 变量。
  */
 const CONTROL_RESERVE_TOP = 88; // px
@@ -13,7 +13,19 @@ const CONTROL_RESERVE_TOP = 88; // px
 export default function TelegramProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     initTelegramWebApp();
-    applySafeAreaVars();
+    applySafeAreaVars(); // 初始 fallback
+
+    const tg = (window as any).Telegram?.WebApp;
+
+    // 监听 Telegram 安全区变化事件，动态更新 CSS 变量
+    // 解决 ready() 后 Telegram 才回填安全区数据的时机问题
+    tg?.onEvent?.('safeAreaChanged', applySafeAreaVars);
+    tg?.onEvent?.('contentSafeAreaChanged', applySafeAreaVars);
+
+    return () => {
+      tg?.offEvent?.('safeAreaChanged', applySafeAreaVars);
+      tg?.offEvent?.('contentSafeAreaChanged', applySafeAreaVars);
+    };
   }, []);
 
   return <>{children}</>;
@@ -47,7 +59,7 @@ function applySafeAreaVars() {
   root.style.setProperty('--app-safe-top',                   `${saTop}px`);
   root.style.setProperty('--app-content-top',                `${contentTop}px`);
 
-  const saBottom = Number(sa.bottom  ?? 0);
+  const saBottom  = Number(sa.bottom  ?? 0);
   const csaBottom = Number(csa.bottom ?? 0);
   root.style.setProperty('--tg-safe-area-inset-bottom',  `${saBottom}px`);
   root.style.setProperty('--app-safe-bottom',            `${Math.max(saBottom, csaBottom)}px`);
