@@ -1,38 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { prisma } from '@/lib/prisma'
 import { parseTelegramUser } from '@/lib/telegram'
-
-type TelegramUser = {
-  id: number | string
-  username?: string
-  first_name?: string
-  last_name?: string
-  photo_url?: string
-}
+import { getOrCreateTelegramUser, type TelegramUserPayload } from '@/lib/telegram-user'
 
 export async function GET(req: NextRequest) {
   try {
     const initData = req.headers.get('x-init-data') ?? ''
-    const tgUser = parseTelegramUser(initData) as TelegramUser | null
+    const tgUser = parseTelegramUser(initData) as TelegramUserPayload | null
     if (!tgUser?.id) return NextResponse.json({ error: '未登录' }, { status: 401 })
 
-    const tgId = BigInt(tgUser.id)
-    const user = await prisma.user.upsert({
-      where: { tgId },
-      update: {
-        username: tgUser.username ?? null,
-        firstName: tgUser.first_name ?? null,
-        lastName: tgUser.last_name ?? null,
-        avatarUrl: tgUser.photo_url ?? null,
-      },
-      create: {
-        tgId,
-        username: tgUser.username ?? null,
-        firstName: tgUser.first_name ?? null,
-        lastName: tgUser.last_name ?? null,
-        avatarUrl: tgUser.photo_url ?? null,
-      },
-    })
+    const user = await getOrCreateTelegramUser(tgUser)
 
     return NextResponse.json({
       id: user.id,
