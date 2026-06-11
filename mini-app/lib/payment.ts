@@ -19,7 +19,6 @@ export async function processBalancePayment(
   orderId: number,
   userId: number,
 ): Promise<{ success: boolean; error?: string; deliveredCount?: number }> {
-  // === 第一步：原子状态锁（PENDING → PROCESSING），防并发重复支付 ===
   const lockResult = await tx.order.updateMany({
     where: {
       id: orderId,
@@ -32,14 +31,14 @@ export async function processBalancePayment(
   })
 
   if (lockResult.count !== 1) {
-    const currentOrder = await tx.order.findUnique({
-      where: { id: orderId },
+    const currentOrder = await tx.order.findFirst({
+      where: { id: orderId, userId },
       select: { status: true, payStatus: true },
     })
 
     if (!currentOrder) return { success: false, error: '订单不存在' }
     if (currentOrder.status === 'COMPLETED' && currentOrder.payStatus === 'SUCCESS') {
-      const delivered = await tx.deliveryLog.count({ where: { orderId } })
+      const delivered = await tx.deliveryLog.count({ where: { orderId, userId } })
       return { success: true, deliveredCount: delivered }
     }
     if (currentOrder.status === 'CANCELLED') return { success: false, error: '订单已取消' }
@@ -47,9 +46,8 @@ export async function processBalancePayment(
     return { success: false, error: '订单状态异常' }
   }
 
-  // === 第二步：查询订单及明细 ===
-  const order = await tx.order.findUnique({
-    where: { id: orderId },
+  const order = await tx.order.findFirst({
+    where: { id: orderId, userId },
     include: { items: true },
   })
 
@@ -67,7 +65,6 @@ export async function processBalancePayment(
 
   const amountDecimal = order.totalAmount
 
-  // === 第三步：先严格校验当前订单锁定卡密数量 ===
   // 必须等于订单购买数量，不能只判断大于等于，否则异常数据会导致多发卡。
   const totalQuantity = order.items.reduce((sum, item) => sum + item.quantity, 0)
   const lockedCards = await tx.cardSecret.findMany({
@@ -79,7 +76,6 @@ export async function processBalancePayment(
     throw new Error('卡密锁定数量异常，请联系客服')
   }
 
-  // === 第四步：原子扣减余额 ===
   const userBefore = await tx.user.findUnique({
     where: { id: userId },
     select: { balance: true },
@@ -102,7 +98,6 @@ export async function processBalancePayment(
   })
   if (!userAfter) throw new Error('用户余额查询异常')
 
-  // === 第五步：写入余额流水（扣款为负数，金额全程使用 Decimal） ===
   await tx.balanceLog.create({
     data: {
       userId,
@@ -115,7 +110,6 @@ export async function processBalancePayment(
     },
   })
 
-  // === 第六步：写入支付流水（upsert 幂等） ===
   await tx.paymentRecord.upsert({
     where: {
       orderId_channel: { orderId, channel: 'BALANCE' },
@@ -131,7 +125,6 @@ export async function processBalancePayment(
     },
   })
 
-  // === 第七步：发卡 — 只处理当前订单 LOCKED 卡密 ===
   const updateResult = await tx.cardSecret.updateMany({
     where: { lockedOrderId: orderId, status: 'LOCKED' },
     data: {
@@ -155,7 +148,6 @@ export async function processBalancePayment(
     skipDuplicates: true,
   })
 
-  // === 第八步：更新订单为 COMPLETED ===
   await tx.order.update({
     where: { id: orderId },
     data: {
@@ -165,7 +157,6 @@ export async function processBalancePayment(
     },
   })
 
-  // === 第九步：同步库存（统一复用 stock.ts，避免商品库存只统计某个规格） ===
   const affected = new Map<string, { productId: number; specId: number | null }>()
   for (const card of lockedCards) {
     const key = `${card.productId}-${card.specId ?? ''}`
@@ -215,8 +206,8 @@ export async function getOrderCardKeys(
   orderId: number,
   userId: number,
 ): Promise<{ id: number; content: string }[]> {
-  const order = await (db as any).order.findUnique({
-    where: { id: orderId },
+  const order = await (db as any).order.findFirst({
+    where: { id: orderId, userId },
     select: { status: true, payStatus: true },
   })
   if (!order || order.payStatus !== 'SUCCESS') return []
