@@ -1,3 +1,4 @@
+import { syncProductStock } from './stock'
 import type { Prisma } from '@prisma/client'
 
 /**
@@ -17,8 +18,9 @@ export async function deliverCards(
     select: { id: true, productId: true, specId: true },
   })
 
-  if (lockedCards.length === 0 || lockedCards.length < requiredQuantity) {
-    return { success: false, deliveredCount: 0, error: '卡密锁定数量不足' }
+  // 必须严格等于订单购买数量，防止异常锁多卡导致多发卡。
+  if (lockedCards.length !== requiredQuantity) {
+    return { success: false, deliveredCount: 0, error: '卡密锁定数量异常' }
   }
 
   const updateResult = await tx.cardSecret.updateMany({
@@ -31,7 +33,7 @@ export async function deliverCards(
     },
   })
 
-  if (updateResult.count !== lockedCards.length) {
+  if (updateResult.count !== requiredQuantity) {
     return { success: false, deliveredCount: 0, error: '卡密状态更新异常' }
   }
 
@@ -45,21 +47,14 @@ export async function deliverCards(
     skipDuplicates: true,
   })
 
-  // 同步库存
+  // 同步库存，统一走 stock.ts，确保商品总库存和规格库存计算一致。
   const affected = new Map<string, { productId: number; specId: number | null }>()
   for (const card of lockedCards) {
     const key = `${card.productId}-${card.specId ?? ''}`
     affected.set(key, { productId: card.productId, specId: card.specId })
   }
   for (const [, { productId, specId }] of affected) {
-    const available = await tx.cardSecret.count({
-      where: { productId, specId: specId ?? undefined, status: 'AVAILABLE' },
-    })
-    await tx.product.update({ where: { id: productId }, data: { stock: available } })
-    if (specId) {
-      const specAvailable = await tx.cardSecret.count({ where: { specId, status: 'AVAILABLE' } })
-      await tx.productSpec.update({ where: { id: specId }, data: { stock: specAvailable } })
-    }
+    await syncProductStock(productId, specId, tx)
   }
 
   return { success: true, deliveredCount: lockedCards.length }
