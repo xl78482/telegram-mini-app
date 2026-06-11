@@ -57,8 +57,8 @@ export default function HomePage() {
         <div
           style={{
             borderRadius: 28,
-            background: 'linear-gradient(135deg, #27A065 0%, #2EA66F 40%, #32B579 75%, #3DC980 100%)',
-            padding: '28px 20px 36px',
+            background: 'linear-gradient(135deg, #5DAE85 0%, #6FBE92 100%)',
+            padding: '26px 20px 30px',
             position: 'relative',
             overflow: 'hidden',
           }}
@@ -69,21 +69,16 @@ export default function HomePage() {
             width: 130, height: 130, borderRadius: '50%',
             background: 'rgba(255,255,255,0.08)', pointerEvents: 'none',
           }} />
-          <div style={{
-            position: 'absolute', bottom: -20, left: 20,
-            width: 80, height: 80, borderRadius: '50%',
-            background: 'rgba(255,255,255,0.06)', pointerEvents: 'none',
-          }} />
 
           {/* 店铺信息 */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 14, position: 'relative' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 16, position: 'relative' }}>
             <div style={{
-              width: 72, height: 72, borderRadius: 20,
+              width: 64, height: 64, borderRadius: 18,
               background: 'rgba(255,255,255,0.22)',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               flexShrink: 0,
             }}>
-              <svg width="36" height="36" viewBox="0 0 24 24" fill="none">
+              <svg width="34" height="34" viewBox="0 0 24 24" fill="none">
                 <path d="M3 9H21L19.5 4H4.5L3 9Z" fill="rgba(255,255,255,0.95)" />
                 <path d="M3 9V20H21V9" stroke="white" strokeWidth="1.8" strokeLinejoin="round" />
                 <path d="M9 9V12C9 13.6569 10.3431 15 12 15C13.6569 15 15 13.6569 15 12V9" stroke="white" strokeWidth="1.8" />
@@ -91,15 +86,22 @@ export default function HomePage() {
             </div>
 
             <div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 5 }}>
-                <span style={{ fontSize: 20, fontWeight: 800, color: 'white', letterSpacing: 0.3 }}>财神商盟</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+                <span style={{ fontSize: 22, fontWeight: 800, color: 'white', letterSpacing: 0.3 }}>数字商城</span>
                 <span style={{
-                  fontSize: 11, fontWeight: 700, color: '#2EA66F',
-                  background: 'white', padding: '2px 9px', borderRadius: 999,
-                }}>已认证</span>
+                  display: 'inline-flex', alignItems: 'center', gap: 4,
+                  fontSize: 12, fontWeight: 600, color: 'white',
+                  background: 'rgba(255,255,255,0.22)', padding: '3px 10px', borderRadius: 999,
+                }}>
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none">
+                    <path d="M12 3L19 6V11C19 15.5 16 19 12 21C8 19 5 15.5 5 11V6L12 3Z" stroke="white" strokeWidth="1.8" strokeLinejoin="round" />
+                    <path d="M9 12L11 14L15 10" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                  已认证
+                </span>
               </div>
-              <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.85)', lineHeight: 1.5 }}>
-                财神商盟精选商品 · 自动发货
+              <div style={{ fontSize: 14, color: 'rgba(255,255,255,0.9)', lineHeight: 1.5 }}>
+                精选数字商品 · 自动发货
               </div>
             </div>
           </div>
@@ -119,7 +121,15 @@ export default function HomePage() {
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
           padding: '18px 16px 10px',
         }}>
-          <span style={{ fontWeight: 700, fontSize: 15, color: '#10201A' }}>商品分类</span>
+          <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+              <rect x="3" y="3" width="7" height="7" rx="1.5" stroke="#2EA66F" strokeWidth="1.8" />
+              <rect x="14" y="3" width="7" height="7" rx="1.5" stroke="#2EA66F" strokeWidth="1.8" />
+              <rect x="3" y="14" width="7" height="7" rx="1.5" stroke="#2EA66F" strokeWidth="1.8" />
+              <rect x="14" y="14" width="7" height="7" rx="1.5" stroke="#2EA66F" strokeWidth="1.8" />
+            </svg>
+            <span style={{ fontWeight: 700, fontSize: 15, color: '#10201A' }}>商品分类</span>
+          </span>
           <span style={{ fontSize: 13, color: '#8A9690' }}>共 {products.length} 件好物</span>
         </div>
 
@@ -154,8 +164,15 @@ export default function HomePage() {
             </div>
           ) : filtered.length === 0 ? (
             <EmptyState
+              icon={
+                <svg width="34" height="34" viewBox="0 0 24 24" fill="none">
+                  <path d="M12 2.5L20 6.5V17.5L12 21.5L4 17.5V6.5L12 2.5Z" stroke="#9AA5A0" strokeWidth="1.6" strokeLinejoin="round" />
+                  <path d="M4 6.5L12 10.5L20 6.5" stroke="#9AA5A0" strokeWidth="1.6" strokeLinejoin="round" />
+                  <path d="M12 10.5V21.5" stroke="#9AA5A0" strokeWidth="1.6" strokeLinejoin="round" />
+                </svg>
+              }
               title="暂无商品"
-              description="商家还没有上架商品"
+              description="商家还没有上架商品，敬请期待"
             />
           ) : (
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
