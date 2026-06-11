@@ -20,7 +20,7 @@ export function BottomNav() {
             <Link
               key={href}
               href={href}
-              className={`bottom-nav-item ${active ? 'active' : ''}`}
+              className={`bottom-nav-item${active ? ' active' : ''}`}
             >
               <div className="bottom-nav-icon-wrap">
                 <Icon size={22} strokeWidth={active ? 2.5 : 1.8} />

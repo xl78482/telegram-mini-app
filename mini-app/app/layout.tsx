@@ -16,7 +16,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </head>
       <body style={{ background: '#F6F6F8', color: '#10201A' }}>
         <Providers>
-          <div className="mx-auto max-w-md min-h-screen" style={{ background: '#F6F6F8' }}>
+          <div style={{ margin: '0 auto', maxWidth: '28rem', minHeight: '100dvh', background: '#F6F6F8', position: 'relative' }}>
             {children}
           </div>
         </Providers>

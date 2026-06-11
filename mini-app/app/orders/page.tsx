@@ -43,14 +43,22 @@ export default function OrdersPage() {
   })
 
   return (
-    <div style={{ background: '#F6F6F8', minHeight: '100vh' }}>
-      <AppHeader title="我的订单" subtitle="订单中心" />
+    <div style={{ background: '#F6F6F8', minHeight: '100dvh' }}>
+      <AppHeader title="订单中心" subtitle="小程序" />
 
-      <div style={{ padding: '16px 20px', paddingBottom: 'calc(76px + env(safe-area-inset-bottom) + 16px)' }}>
+      <div style={{
+        paddingTop: 'calc(80px + env(safe-area-inset-top) + 16px)',
+        paddingBottom: 'calc(76px + env(safe-area-inset-bottom) + 16px)',
+        padding: 'calc(80px + env(safe-area-inset-top) + 16px) 20px calc(76px + env(safe-area-inset-bottom) + 16px)',
+      }}>
+
         {/* 筛选卡片 */}
         <div style={{
-          background: '#fff', borderRadius: 24, boxShadow: '0 2px 10px rgba(0,0,0,0.05)',
-          padding: '20px 16px 16px', marginBottom: 16,
+          background: '#fff',
+          borderRadius: 24,
+          boxShadow: '0 2px 12px rgba(0,0,0,0.06)',
+          padding: '20px 16px 16px',
+          marginBottom: 16,
         }}>
           <p style={{ fontSize: 17, fontWeight: 800, color: '#10201A', marginBottom: 14 }}>我的订单</p>
 
@@ -61,22 +69,29 @@ export default function OrdersPage() {
                 key={f.key}
                 onClick={() => setStatusFilter(f.key)}
                 style={{
-                  flexShrink: 0, padding: '7px 14px', borderRadius: 999,
-                  fontSize: 13, fontWeight: 600, border: 'none', cursor: 'pointer',
+                  flexShrink: 0,
+                  padding: '7px 14px',
+                  borderRadius: 999,
+                  fontSize: 13,
+                  fontWeight: statusFilter === f.key ? 700 : 500,
+                  border: 'none',
+                  cursor: 'pointer',
                   background: statusFilter === f.key ? '#E8F7F0' : 'transparent',
                   color: statusFilter === f.key ? '#2EA66F' : '#6B7C73',
                   transition: 'all 0.15s',
                 }}
-              >
-                {f.label}
-              </button>
+              >{f.label}</button>
             ))}
           </div>
 
           {/* 搜索框 */}
           <div style={{
-            display: 'flex', alignItems: 'center', gap: 8,
-            background: '#F6F6F8', borderRadius: 999, padding: '10px 14px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 8,
+            background: '#F6F6F8',
+            borderRadius: 999,
+            padding: '10px 14px',
           }}>
             <Search size={15} color="#8A9690" />
             <input
@@ -84,8 +99,12 @@ export default function OrdersPage() {
               onChange={e => setSearch(e.target.value)}
               placeholder="搜索订单号 / 商品名称"
               style={{
-                flex: 1, background: 'none', border: 'none', outline: 'none',
-                fontSize: 14, color: '#10201A',
+                flex: 1,
+                background: 'none',
+                border: 'none',
+                outline: 'none',
+                fontSize: 14,
+                color: '#10201A',
               }}
             />
           </div>
@@ -94,7 +113,7 @@ export default function OrdersPage() {
         {/* 订单列表 */}
         {loading ? (
           [...Array(3)].map((_, i) => (
-            <div key={i} className="skeleton" style={{ height: 160, marginBottom: 14, borderRadius: 20 }} />
+            <div key={i} className="skeleton" style={{ height: 160, marginBottom: 14, borderRadius: 24 }} />
           ))
         ) : filtered.length === 0 ? (
           <EmptyState
@@ -103,8 +122,13 @@ export default function OrdersPage() {
             description="您还没有相关订单"
             action={
               <Link href="/" style={{
-                display: 'inline-block', padding: '10px 24px', borderRadius: 999,
-                background: '#2EA66F', color: '#fff', fontSize: 14, fontWeight: 600,
+                display: 'inline-block',
+                padding: '10px 28px',
+                borderRadius: 999,
+                background: '#2EA66F',
+                color: '#fff',
+                fontSize: 14,
+                fontWeight: 700,
                 textDecoration: 'none',
               }}>去购物</Link>
             }
