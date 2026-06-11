@@ -8,7 +8,13 @@ export function getTelegramWebApp() {
   return (window as any).Telegram?.WebApp ?? null;
 }
 
+// 初始化锁，确保只执行一次
+let _initialized = false;
+
 export function initTelegramWebApp() {
+  if (_initialized) return;
+  _initialized = true;
+
   const tg = getTelegramWebApp();
   if (!tg) return;
 
@@ -52,12 +58,15 @@ export function showBackButton(onClick: () => void) {
   } catch {}
 }
 
-export function hideBackButton() {
+export function hideBackButton(onClick?: () => void) {
   const tg = getTelegramWebApp();
   if (!tg) return;
   try {
+    // 必须传入相同的函数引用才能正确移除监听
+    if (onClick) {
+      tg.BackButton?.offClick?.(onClick);
+    }
     tg.BackButton?.hide?.();
-    tg.BackButton?.offClick?.();
   } catch {}
 }
 
