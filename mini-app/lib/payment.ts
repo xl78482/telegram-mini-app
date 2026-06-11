@@ -1,4 +1,4 @@
-import { prisma } from './prisma'
+import { syncProductStock } from './stock'
 import type { Prisma } from '@prisma/client'
 
 type DbClient = import('@prisma/client').PrismaClient | Prisma.TransactionClient
@@ -7,19 +7,19 @@ type DbClient = import('@prisma/client').PrismaClient | Prisma.TransactionClient
  * 余额支付核心逻辑（事务内）
  *
  * 并发安全保证：
- * 1. 原子状态更新 PENDING → PROCESSING 作为行级锁
+ * 1. 原子状态更新 PENDING → PROCESSING 作为状态锁
  * 2. 余额使用 updateMany + gte 原子扣减
  * 3. PaymentRecord 使用 upsert 幂等
  * 4. DeliveryLog 使用 createMany skipDuplicates
  * 5. 卡密更新带 where lockedOrderId + LOCKED 条件
- * 6. 任何步骤不满足条件时自然回滚事务
+ * 6. 任何关键步骤不满足条件时抛错，整笔事务回滚
  */
 export async function processBalancePayment(
   tx: Prisma.TransactionClient,
   orderId: number,
   userId: number,
 ): Promise<{ success: boolean; error?: string; deliveredCount?: number }> {
-  // === 第一步：原子状态锁（PENDING → PROCESSING），防并发 ===
+  // === 第一步：原子状态锁（PENDING → PROCESSING），防并发重复支付 ===
   const lockResult = await tx.order.updateMany({
     where: {
       id: orderId,
@@ -32,11 +32,11 @@ export async function processBalancePayment(
   })
 
   if (lockResult.count !== 1) {
-    // 抢锁失败 → 查订单当前状态，返回幂等结果
     const currentOrder = await tx.order.findUnique({
       where: { id: orderId },
       select: { status: true, payStatus: true },
     })
+
     if (!currentOrder) return { success: false, error: '订单不存在' }
     if (currentOrder.status === 'COMPLETED' && currentOrder.payStatus === 'SUCCESS') {
       const delivered = await tx.deliveryLog.count({ where: { orderId } })
@@ -47,36 +47,44 @@ export async function processBalancePayment(
     return { success: false, error: '订单状态异常' }
   }
 
-  // 锁成功，继续执行（任何后续失败通过事务自然回滚，PROCESSING 会被回滚）
-
   // === 第二步：查询订单及明细 ===
   const order = await tx.order.findUnique({
     where: { id: orderId },
     include: { items: true },
   })
-  if (!order) return { success: false, error: '订单不存在' }
+
+  if (!order) throw new Error('订单不存在')
 
   if (order.paymentMethod !== 'BALANCE') {
-    // 恢复订单状态
     await tx.order.update({ where: { id: orderId }, data: { status: 'PENDING' } })
     return { success: false, error: '该订单不支持余额支付' }
   }
 
   if (order.expiresAt && new Date() > order.expiresAt) {
-    // 已超时，恢复状态让调用方处理
-    await tx.order.update({ where: { id: orderId }, data: { status: 'PENDING' } })
+    await expireProcessingOrderInsideTransaction(tx, orderId)
     return { success: false, error: '订单已超时，请重新下单' }
   }
 
   const amountDecimal = order.totalAmount
 
-  // === 第三步：原子扣减余额 ===
-  // 先查询用户
+  // === 第三步：先严格校验当前订单锁定卡密数量 ===
+  // 必须等于订单购买数量，不能只判断大于等于，否则异常数据会导致多发卡。
+  const totalQuantity = order.items.reduce((sum, item) => sum + item.quantity, 0)
+  const lockedCards = await tx.cardSecret.findMany({
+    where: { lockedOrderId: orderId, status: 'LOCKED' },
+    select: { id: true, productId: true, specId: true },
+  })
+
+  if (lockedCards.length !== totalQuantity) {
+    throw new Error('卡密锁定数量异常，请联系客服')
+  }
+
+  // === 第四步：原子扣减余额 ===
   const userBefore = await tx.user.findUnique({
     where: { id: userId },
     select: { balance: true },
   })
-  if (!userBefore) return { success: false, error: '用户不存在' }
+  if (!userBefore) throw new Error('用户不存在')
 
   const debit = await tx.user.updateMany({
     where: { id: userId, balance: { gte: amountDecimal } },
@@ -84,37 +92,30 @@ export async function processBalancePayment(
   })
 
   if (debit.count !== 1) {
-    // 余额不足或用户不存在 → 恢复订单为 PENDING
     await tx.order.update({ where: { id: orderId }, data: { status: 'PENDING' } })
     return { success: false, error: '余额不足，请充值余额' }
   }
 
-  // 扣减后重新查询余额
   const userAfter = await tx.user.findUnique({
     where: { id: userId },
     select: { balance: true },
   })
-  if (!userAfter) {
-    throw new Error('用户余额查询异常')
-  }
+  if (!userAfter) throw new Error('用户余额查询异常')
 
-  const balanceBefore = userBefore.balance
-  const balanceAfter = userAfter.balance
-
-  // === 第四步：写入余额流水（负数金额，使用 Decimal.mul(-1) 避免 JS Number） ===
+  // === 第五步：写入余额流水（扣款为负数，金额全程使用 Decimal） ===
   await tx.balanceLog.create({
     data: {
       userId,
       type: 'PAY_ORDER',
       amount: amountDecimal.mul(-1),
-      balanceBefore,
-      balanceAfter,
+      balanceBefore: userBefore.balance,
+      balanceAfter: userAfter.balance,
       orderId,
       note: `订单 ${order.orderNo} 余额支付`,
     },
   })
 
-  // === 第五步：写入支付流水（upsert 幂等） ===
+  // === 第六步：写入支付流水（upsert 幂等） ===
   await tx.paymentRecord.upsert({
     where: {
       orderId_channel: { orderId, channel: 'BALANCE' },
@@ -130,29 +131,7 @@ export async function processBalancePayment(
     },
   })
 
-  // === 第六步：更新订单为 COMPLETED ===
-  await tx.order.update({
-    where: { id: orderId },
-    data: {
-      status: 'COMPLETED',
-      payStatus: 'SUCCESS',
-      paidAt: new Date(),
-    },
-  })
-
-  // === 第七步：发卡 — 只处理 LOCKED 卡密 ===
-  const lockedCards = await tx.cardSecret.findMany({
-    where: { lockedOrderId: orderId, status: 'LOCKED' },
-    select: { id: true, productId: true, specId: true },
-  })
-
-  const totalQuantity = order.items.reduce((sum, item) => sum + item.quantity, 0)
-  if (lockedCards.length === 0 || lockedCards.length < totalQuantity) {
-    // 卡密数量不足或锁定异常 → 回滚（事务异常自然回滚）
-    throw new Error('卡密锁定异常，请联系客服')
-  }
-
-  // 更新卡密状态为 SOLD（带条件）
+  // === 第七步：发卡 — 只处理当前订单 LOCKED 卡密 ===
   const updateResult = await tx.cardSecret.updateMany({
     where: { lockedOrderId: orderId, status: 'LOCKED' },
     data: {
@@ -163,11 +142,10 @@ export async function processBalancePayment(
     },
   })
 
-  if (updateResult.count !== lockedCards.length) {
+  if (updateResult.count !== totalQuantity) {
     throw new Error('卡密状态更新异常')
   }
 
-  // === 第八步：写入发卡日志（skipDuplicates 防止重复） ===
   await tx.deliveryLog.createMany({
     data: lockedCards.map(card => ({
       orderId,
@@ -177,32 +155,56 @@ export async function processBalancePayment(
     skipDuplicates: true,
   })
 
-  // === 第九步：同步库存 ===
+  // === 第八步：更新订单为 COMPLETED ===
+  await tx.order.update({
+    where: { id: orderId },
+    data: {
+      status: 'COMPLETED',
+      payStatus: 'SUCCESS',
+      paidAt: new Date(),
+    },
+  })
+
+  // === 第九步：同步库存（统一复用 stock.ts，避免商品库存只统计某个规格） ===
   const affected = new Map<string, { productId: number; specId: number | null }>()
   for (const card of lockedCards) {
     const key = `${card.productId}-${card.specId ?? ''}`
     affected.set(key, { productId: card.productId, specId: card.specId })
   }
   for (const [, { productId, specId }] of affected) {
-    const available = await tx.cardSecret.count({
-      where: { productId, specId: specId ?? undefined, status: 'AVAILABLE' },
-    })
-    await tx.product.update({
-      where: { id: productId },
-      data: { stock: available },
-    })
-    if (specId) {
-      const specAvailable = await tx.cardSecret.count({
-        where: { specId, status: 'AVAILABLE' },
-      })
-      await tx.productSpec.update({
-        where: { id: specId },
-        data: { stock: specAvailable },
-      })
-    }
+    await syncProductStock(productId, specId, tx)
   }
 
   return { success: true, deliveredCount: lockedCards.length }
+}
+
+async function expireProcessingOrderInsideTransaction(
+  tx: Prisma.TransactionClient,
+  orderId: number,
+): Promise<void> {
+  const lockedCards = await tx.cardSecret.findMany({
+    where: { lockedOrderId: orderId, status: 'LOCKED' },
+    select: { productId: true, specId: true },
+  })
+
+  await tx.cardSecret.updateMany({
+    where: { lockedOrderId: orderId, status: 'LOCKED' },
+    data: { status: 'AVAILABLE', lockedOrderId: null, lockedAt: null },
+  })
+
+  await tx.order.update({
+    where: { id: orderId },
+    data: { status: 'CANCELLED', payStatus: 'EXPIRED', cancelReason: 'TIMEOUT' },
+  })
+
+  const affected = new Map<string, { productId: number; specId: number | null }>()
+  for (const card of lockedCards) {
+    const key = `${card.productId}-${card.specId ?? ''}`
+    affected.set(key, { productId: card.productId, specId: card.specId })
+  }
+  for (const [, { productId, specId }] of affected) {
+    await syncProductStock(productId, specId, tx)
+  }
 }
 
 /**
