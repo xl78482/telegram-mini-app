@@ -1,3 +1,4 @@
+/* BUILD: 2026-06-11-v4 */
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 
@@ -22,7 +23,10 @@ export async function GET() {
       }))
     )
   } catch (e) {
-    console.error(e)
-    return NextResponse.json({ error: 'Server error' }, { status: 500 })
+    console.error('[GET /api/products]', e)
+    return NextResponse.json(
+      { error: '商品列表获取失败', message: String(e) },
+      { status: 500 }
+    )
   }
 }

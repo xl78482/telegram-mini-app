@@ -1,5 +1,5 @@
 'use client';
-/* BUILD: 2026-06-11-v3 */
+/* BUILD: 2026-06-11-v4 */
 
 import { useState, useEffect } from 'react';
 import BottomNav from '../components/BottomNav';
@@ -14,12 +14,27 @@ export default function HomePage() {
 
   useEffect(() => {
     fetch('/api/products')
-      .then(r => r.json())
-      .then((data: Product[] | { products: Product[] }) => {
-        setProducts(Array.isArray(data) ? data : (data.products ?? []));
+      .then(async r => {
+        const data = await r.json();
+        if (!r.ok) {
+          // 接口返回非 200
+          throw new Error(data?.error ?? `接口异常 (${r.status})`);
+        }
+        if (!Array.isArray(data)) {
+          // 返回格式异常
+          throw new Error('接口返回格式异常');
+        }
+        return data as Product[];
+      })
+      .then(data => {
+        setProducts(data);
         setLoading(false);
       })
-      .catch(() => { setError('加载失败，请重试'); setLoading(false); });
+      .catch(e => {
+        console.error('[products fetch]', e);
+        setError(e?.message ?? '商品加载失败，请稍后重试');
+        setLoading(false);
+      });
   }, []);
 
   const categories = ['全部', ...Array.from(new Set(
@@ -35,16 +50,15 @@ export default function HomePage() {
 
       {/* ======================================================
           店铺信息卡片
-          顶部内边距使用 var(--app-content-top)，避开 Telegram 控制按钒区域。
-          颟外加 16px 使绿色卡片与屏幕边缘有间距。
+          padding-top 使用 calc(var(--app-content-top) + 12px)
+          避开 Telegram 控制按钒区域，内容卡片颟外留出 12px 外边距
           ====================================================== */}
-      <div style={{ padding: 'var(--app-content-top) var(--page-padding-x) 0' }}>
+      <div style={{ padding: 'calc(var(--app-content-top) + 12px) var(--page-padding-x) 0' }}>
         <div
           style={{
             borderRadius: 28,
             background: 'linear-gradient(135deg, #27A065 0%, #2EA66F 40%, #32B579 75%, #3DC980 100%)',
-            /* 内部内容顶部留 20px 内边距——这里不再需要颟外 offset，因为容器本身已经避开 */
-            padding: '20px 20px 36px',
+            padding: '28px 20px 36px',
             position: 'relative',
             overflow: 'hidden',
           }}
@@ -53,14 +67,12 @@ export default function HomePage() {
           <div style={{
             position: 'absolute', top: -24, right: -24,
             width: 130, height: 130, borderRadius: '50%',
-            background: 'rgba(255,255,255,0.08)',
-            pointerEvents: 'none',
+            background: 'rgba(255,255,255,0.08)', pointerEvents: 'none',
           }} />
           <div style={{
             position: 'absolute', bottom: -20, left: 20,
             width: 80, height: 80, borderRadius: '50%',
-            background: 'rgba(255,255,255,0.06)',
-            pointerEvents: 'none',
+            background: 'rgba(255,255,255,0.06)', pointerEvents: 'none',
           }} />
 
           {/* 店铺信息 */}
@@ -98,7 +110,7 @@ export default function HomePage() {
       <div style={{
         margin: '-20px 12px 0',
         background: 'white',
-        borderRadius: '24px 24px 24px 24px',
+        borderRadius: 24,
         boxShadow: '0 4px 20px rgba(16,32,26,0.09)',
         position: 'relative',
         zIndex: 2,
@@ -133,9 +145,18 @@ export default function HomePage() {
               ))}
             </div>
           ) : error ? (
-            <div style={{ padding: '32px 0', textAlign: 'center', color: '#E53935', fontSize: 14 }}>{error}</div>
+            <div style={{ padding: '32px 16px', textAlign: 'center' }}>
+              <div style={{ fontSize: 36, marginBottom: 10 }}>⚠️</div>
+              <div style={{ fontSize: 14, color: '#E53935', fontWeight: 600, marginBottom: 6 }}>
+                商品加载失败，请稍后重试
+              </div>
+              <div style={{ fontSize: 12, color: '#8A9690' }}>{error}</div>
+            </div>
           ) : filtered.length === 0 ? (
-            <EmptyState title="暂无商品" description="该分类暂无商品" />
+            <EmptyState
+              title="暂无商品"
+              description="商家还没有上架商品"
+            />
           ) : (
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
               {filtered.map(product => (

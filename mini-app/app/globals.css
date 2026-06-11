@@ -1,17 +1,16 @@
-/* BUILD: 2026-06-11-v3 */
+/* BUILD: 2026-06-11-v4 */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 /*
  * ============================================
- * Telegram Mini App 全屏布局样式
- * 全局安全区策略：
- *   requestFullscreen 模式下，页面主体罩盖到屏幕最顶部。
- *   - --tg-safe-area-inset-top    = iOS 状态栏/灵动岛高度（Telegram JS 设置）
- *   - --tg-content-safe-area-inset-top = 内容区顶部，包含控制按钒高度（Telegram JS 设置）
- *   实际上我们需要的是 contentSafeAreaInset.top，它已包含关闭按钒高度
- *   fallback：如果 Telegram 变量未注入，回退到 64px 保守处理
+ * Telegram Mini App 全屏布局样式 v4
+ *
+ * 安全区策略（requestFullscreen 模式）：
+ *   --tg-control-reserve-top : Telegram 控制按钒区域保守值 = 88px
+ *   --app-safe-top           : iOS 物理安全区（状态栏/灵动岛）
+ *   --app-content-top        : 内容应该开始的 y 坐标，取两者最大値
  * ============================================
  */
 
@@ -29,15 +28,10 @@
   --radius-btn:         999px;
   --shadow-card:        0 2px 12px rgba(16,32,26,0.07);
 
-  /*
-   * 安全区分两层：
-   *   --app-safe-top    : iOS 物理第一层，状态栏/灵动岛
-   *   --app-content-top : 状态栏 + Telegram 控制按钒区域，内容应该在这个值之下
-   *
-   * CSS 自定义属性初始值：0px
-   * Telegram JS 会在 documentElement 上设置这些 CSS 变量
-   * 我们用 max() 实现：取两者最大値，同时设定最小化 fallback
-   */
+  /* Telegram 控制按钒保守高度：88px */
+  --tg-control-reserve-top: 88px;
+
+  /* iOS 物理安全区（状态栏/灵动岛） */
   --app-safe-top: max(
     env(safe-area-inset-top, 0px),
     var(--tg-safe-area-inset-top, 0px)
@@ -48,18 +42,15 @@
   );
 
   /*
-   * 页面内容顶部需要避开的总高度：
-   *   = contentSafeAreaInset.top（已包含关闭按钒 + 状态栏）
-   *   fallback: 如果 Telegram 未设置该变量，回退到 --app-safe-top + 52px
-   * 
-   * 注：requestFullscreen 模式下 contentSafeAreaInset.top 通常为 52~90px
+   * 页面内容逆客顶部安全区：
+   *   = max(contentSafeAreaInset.top, safeAreaInset.top + 88px)
+   * CSS 层面的 fallback（JS 层会覆盖此值）
    */
   --app-content-top: max(
     var(--tg-content-safe-area-inset-top, 0px),
-    calc(var(--app-safe-top) + 52px)
+    calc(var(--app-safe-top) + var(--tg-control-reserve-top))
   );
 
-  /* 页面内容顶部颟外边距（内容圆角卡片等元素与内容边界间距） */
   --page-padding-x: 16px;
   --page-header-gap: 12px;
 }
@@ -70,15 +61,10 @@
   -webkit-tap-highlight-color: transparent;
 }
 
-html {
-  margin: 0;
-  padding: 0;
-  overscroll-behavior: none;
-}
+html { margin: 0; padding: 0; overscroll-behavior: none; }
 
 body {
-  margin: 0;
-  padding: 0;
+  margin: 0; padding: 0;
   background: var(--color-bg);
   color: var(--color-text);
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', sans-serif;
@@ -88,7 +74,7 @@ body {
 }
 
 /* ============================================
-   Telegram 全屏布局容器
+   布局容器
    ============================================ */
 
 .tg-app {
@@ -97,38 +83,24 @@ body {
   position: relative;
 }
 
-/* 页面容器：预留底部导航空间 */
 .tg-page {
   min-height: var(--tg-viewport-stable-height, 100dvh);
   padding-bottom: calc(80px + var(--app-safe-bottom));
 }
 
-/* 底部导航栏 */
 .tg-bottom-nav {
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  height: auto;
-  min-height: 64px;
-  background: white;
-  border-top: 1px solid #ECEEF0;
-  display: flex;
-  align-items: flex-start;
-  z-index: 100;
-  padding-top: 8px;
+  position: fixed; bottom: 0; left: 0; right: 0;
+  height: auto; min-height: 64px;
+  background: white; border-top: 1px solid #ECEEF0;
+  display: flex; align-items: flex-start;
+  z-index: 100; padding-top: 8px;
   padding-bottom: max(12px, var(--app-safe-bottom));
 }
 
-/* 底部 Sheet 弹窗 */
-.tg-bottom-sheet {
-  padding-bottom: max(24px, var(--app-safe-bottom));
-}
+.tg-bottom-sheet { padding-bottom: max(24px, var(--app-safe-bottom)); }
 
-/* 兼容旧代码中的 tg-content-top 类 */
-.tg-content-top {
-  padding-top: var(--app-content-top);
-}
+/* 兼容旧类名 */
+.tg-content-top { padding-top: var(--app-content-top); }
 
 /* ============================================
    工具类
@@ -142,45 +114,23 @@ body {
 }
 
 /* ============================================
-   内建 UI 组件
+   UI 组件
    ============================================ */
 
-.card {
-  background: var(--color-white);
-  border-radius: var(--radius-card);
-  box-shadow: var(--shadow-card);
-}
+.card { background: var(--color-white); border-radius: var(--radius-card); box-shadow: var(--shadow-card); }
 
 .btn-pill {
-  border-radius: var(--radius-btn);
-  padding: 10px 24px;
-  font-weight: 600;
-  font-size: 15px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.15s ease;
-  cursor: pointer;
-  border: none;
-  outline: none;
+  border-radius: var(--radius-btn); padding: 10px 24px;
+  font-weight: 600; font-size: 15px;
+  display: inline-flex; align-items: center; justify-content: center;
+  transition: all 0.15s ease; cursor: pointer; border: none; outline: none;
 }
 
-.btn-primary {
-  background: var(--color-primary);
-  color: white;
-}
-
+.btn-primary { background: var(--color-primary); color: white; }
 .btn-primary:active { background: var(--color-primary-dark); transform: scale(0.98); }
-
-.btn-outline-green {
-  background: transparent;
-  color: var(--color-primary);
-  border: 1.5px solid var(--color-primary);
-}
-
+.btn-outline-green { background: transparent; color: var(--color-primary); border: 1.5px solid var(--color-primary); }
 .btn-outline-green:active { background: var(--color-primary-light); transform: scale(0.98); }
 
-/* Shimmer 骨架屏 */
 @keyframes shimmer {
   0% { background-position: -400px 0; }
   100% { background-position: 400px 0; }
@@ -193,7 +143,6 @@ body {
   border-radius: 8px;
 }
 
-/* 状态颟色 */
 .status-completed  { background: #E8F7EE; color: #2EA66F; }
 .status-pending    { background: #FFF4E5; color: #F59E0B; }
 .status-processing { background: #EEF3FF; color: #4F74E8; }

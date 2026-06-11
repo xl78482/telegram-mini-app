@@ -1,17 +1,15 @@
 'use client';
+/* BUILD: 2026-06-11-v4 */
 
 import { useEffect } from 'react';
-import { initTelegramWebApp, getSafeAreaInsets } from '../lib/telegram/webapp';
+import { initTelegramWebApp } from '../lib/telegram/webapp';
 
 /**
- * TelegramProvider
- * 初始化 Telegram WebApp SDK，并将实际安全区尺寸写入 CSS 变量。
- *
- * 为什么需要手动写入？
- *   Telegram 的 --tg-safe-area-inset-top / --tg-content-safe-area-inset-top
- *   是由 Telegram 客户端注入的 CSS 变量，但部分设备/版本可能不就绪注入。
- *   我们通过 JS API 读取实际尺寸并手动写入，确保全部设备都能正确应用。
+ * 控制按钒区域保守尺寸——不依赖 Telegram 注入的 CSS 变量，直接用 JS API 读取实际尺寸
+ * 并手动写入 CSS 变量。
  */
+const CONTROL_RESERVE_TOP = 88; // px
+
 export default function TelegramProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     initTelegramWebApp();
@@ -27,32 +25,33 @@ function applySafeAreaVars() {
   const tg = (window as any).Telegram?.WebApp;
   const root = document.documentElement;
 
-  // 读取 Telegram JS API 的安全区尺寸
-  const sa  = tg?.safeAreaInset        ?? {}; // 状态栏/灵动岛
-  const csa = tg?.contentSafeAreaInset ?? {}; // 控制按钒 + 状态栏
+  const sa  = tg?.safeAreaInset        ?? {};
+  const csa = tg?.contentSafeAreaInset ?? {};
 
   const saTop  = Number(sa.top  ?? 0);
   const csaTop = Number(csa.top ?? 0);
 
   /*
-   * contentSafeAreaInset.top 已包含：关闭按钒 + 返回按钒 + 状态栏。
-   * 这是内容应该开始展示的最小 y 坐标。
-   * fallback: 如果 csaTop === 0（非全屏模式或旧版 Telegram），
-   *           则用 saTop + 52px 作为保守布局
+   * 计算内容顶部起始位置：
+   *   无论 csaTop 有没有値，一律取 max(csaTop, saTop + 88)
+   *   这样即使 Telegram 返回了 csaTop，只要它小于 88px + 状态栏，也不会截断内容
    */
-  const contentTop = csaTop > 0
-    ? csaTop
-    : saTop > 0
-      ? saTop + 52
-      : 64; // 最后 fallback: 非 Telegram 环境或极事情况
+  const contentTop = Math.max(
+    csaTop,
+    saTop + CONTROL_RESERVE_TOP
+  );
 
+  root.style.setProperty('--tg-control-reserve-top',        `${CONTROL_RESERVE_TOP}px`);
   root.style.setProperty('--tg-safe-area-inset-top',         `${saTop}px`);
   root.style.setProperty('--tg-content-safe-area-inset-top', `${csaTop}px`);
   root.style.setProperty('--app-safe-top',                   `${saTop}px`);
   root.style.setProperty('--app-content-top',                `${contentTop}px`);
 
-  root.style.setProperty('--tg-safe-area-inset-bottom',
-    `${Number(sa.bottom  ?? 0)}px`);
-  root.style.setProperty('--app-safe-bottom',
-    `${Math.max(Number(sa.bottom ?? 0), Number(csa.bottom ?? 0))}px`);
+  const saBottom = Number(sa.bottom  ?? 0);
+  const csaBottom = Number(csa.bottom ?? 0);
+  root.style.setProperty('--tg-safe-area-inset-bottom',  `${saBottom}px`);
+  root.style.setProperty('--app-safe-bottom',            `${Math.max(saBottom, csaBottom)}px`);
+
+  // 调试信息
+  console.log('[TG SafeArea]', { saTop, csaTop, contentTop });
 }
