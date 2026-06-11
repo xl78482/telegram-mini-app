@@ -10,11 +10,20 @@ export async function releaseOrderLockedCards(
   cancelReason: string = 'USER_CANCELLED'
 ): Promise<void> {
   await prisma.$transaction(async tx => {
-    const order = await tx.order.findUnique({ where: { id: orderId } })
-    // 幂等：不是 PENDING 则跳过
-    if (!order || order.status !== 'PENDING') return
+    // 原子锁：只处理 PENDING 状态的订单
+    const lockResult = await tx.order.updateMany({
+      where: { id: orderId, status: 'PENDING' },
+      data: {
+        status: 'CANCELLED',
+        payStatus: cancelReason === 'TIMEOUT' ? 'EXPIRED' : 'FAILED',
+        cancelReason,
+      },
+    })
 
-    // 查找该订单锁定的所有卡密
+    // 如果没 lock 到，说明订单已不是 PENDING，幂等跳过
+    if (lockResult.count !== 1) return
+
+    // 释放该订单锁定的卡密
     const locked = await tx.cardSecret.findMany({
       where: { lockedOrderId: orderId, status: 'LOCKED' },
       select: { id: true, productId: true, specId: true },
@@ -26,15 +35,6 @@ export async function releaseOrderLockedCards(
         data: { status: 'AVAILABLE', lockedOrderId: null, lockedAt: null },
       })
     }
-
-    await tx.order.update({
-      where: { id: orderId },
-      data: {
-        status: 'CANCELLED',
-        payStatus: cancelReason === 'TIMEOUT' ? 'EXPIRED' : 'FAILED',
-        cancelReason,
-      },
-    })
 
     // 在事务内用 tx 同步库存，保证一致性
     const affectedPairs = [

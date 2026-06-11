@@ -33,9 +33,8 @@ export function initTelegramWebApp() {
     tg.setBackgroundColor?.('#F6F6F8');
     tg.setBottomBarColor?.('#FFFFFF');
 
-  } catch (e) {
+  } catch {
     // 静默失败，不影响页面
-    console.warn('[TG] init error:', e);
   }
 }
 

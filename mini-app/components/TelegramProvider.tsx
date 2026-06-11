@@ -51,7 +51,4 @@ function applySafeAreaVars() {
   const csaBottom = Number(csa.bottom ?? 0);
   root.style.setProperty('--tg-safe-area-inset-bottom',  `${saBottom}px`);
   root.style.setProperty('--app-safe-bottom',            `${Math.max(saBottom, csaBottom)}px`);
-
-  // 调试信息
-  console.log('[TG SafeArea]', { saTop, csaTop, contentTop });
 }
