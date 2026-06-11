@@ -1,4 +1,5 @@
 'use client';
+/* BUILD: 2026-06-11-v3 */
 
 import { useState, useEffect } from 'react';
 import BottomNav from '../../components/BottomNav';
@@ -26,35 +27,34 @@ export default function ProfilePage() {
   }, []);
 
   const displayName = user
-    ? [user.firstName, user.lastName].filter(Boolean).join(' ') || user.username || `用户${user.id}`
-    : '-';
+    ? ([user.firstName, user.lastName].filter(Boolean).join(' ') || user.username || `用户${user.id}`)
+    : null;
   const balance = Number(user?.balance ?? 0);
 
   return (
     <div className="tg-page" style={{ background: '#F6F6F8' }}>
 
-      {/* 顶部绿色头图区域 */}
-      <div style={{ padding: 'calc(var(--app-content-top) + 16px) 16px 0' }}>
-        <div
-          style={{
-            borderRadius: 28,
-            background: 'linear-gradient(135deg, #27A065 0%, #32B579 100%)',
-            padding: '24px 20px',
-            position: 'relative', overflow: 'hidden',
-          }}
-        >
+      {/* 顶部绿色头图——内边距使用 var(--app-content-top) */}
+      <div style={{ padding: 'var(--app-content-top) var(--page-padding-x) 0' }}>
+        <div style={{
+          borderRadius: 28,
+          background: 'linear-gradient(135deg, #27A065 0%, #32B579 100%)',
+          padding: '20px 20px 24px',
+          position: 'relative', overflow: 'hidden',
+        }}>
           <div style={{
             position: 'absolute', top: -20, right: -20,
             width: 110, height: 110, borderRadius: '50%',
             background: 'rgba(255,255,255,0.08)',
+            pointerEvents: 'none',
           }} />
 
           {loading ? (
             <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-              <div className="skeleton" style={{ width: 56, height: 56, borderRadius: '50%', flexShrink: 0 }} />
+              <div className="skeleton" style={{ width: 56, height: 56, borderRadius: '50%', flexShrink: 0, background: 'rgba(255,255,255,0.3)' }} />
               <div style={{ flex: 1 }}>
-                <div className="skeleton" style={{ height: 16, width: '50%', marginBottom: 8 }} />
-                <div className="skeleton" style={{ height: 12, width: '30%' }} />
+                <div className="skeleton" style={{ height: 16, width: '50%', marginBottom: 8, background: 'rgba(255,255,255,0.3)' }} />
+                <div className="skeleton" style={{ height: 12, width: '30%', background: 'rgba(255,255,255,0.3)' }} />
               </div>
             </div>
           ) : (
@@ -65,11 +65,14 @@ export default function ProfilePage() {
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 fontSize: 24, flexShrink: 0,
               }}>
-                {displayName !== '-' ? displayName.charAt(0).toUpperCase() : '👤'}
+                {displayName ? displayName.charAt(0).toUpperCase() : '👤'}
               </div>
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 18, fontWeight: 800, color: 'white', marginBottom: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  {displayName}
+                <div style={{
+                  fontSize: 18, fontWeight: 800, color: 'white', marginBottom: 2,
+                  overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                }}>
+                  {displayName ?? '加载中...'}
                 </div>
                 {user?.username && (
                   <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.8)' }}>@{user.username}</div>
@@ -81,11 +84,10 @@ export default function ProfilePage() {
       </div>
 
       {/* 余额卡片 */}
-      <div style={{ padding: '16px 16px 0' }}>
+      <div style={{ padding: '14px var(--page-padding-x) 0' }}>
         <div style={{
           background: 'white', borderRadius: 20,
-          padding: '20px 20px',
-          boxShadow: '0 2px 12px rgba(16,32,26,0.07)',
+          padding: '20px', boxShadow: '0 2px 12px rgba(16,32,26,0.07)',
         }}>
           <div style={{ fontSize: 13, color: '#8A9690', marginBottom: 6 }}>账户余额</div>
           {loading ? (
@@ -111,23 +113,19 @@ export default function ProfilePage() {
       </div>
 
       {/* 功能卡片列表 */}
-      <div style={{ padding: '16px 16px 0' }}>
+      <div style={{ padding: '12px var(--page-padding-x) 0' }}>
         <div style={{ background: 'white', borderRadius: 20, overflow: 'hidden', boxShadow: '0 2px 12px rgba(16,32,26,0.07)' }}>
           {[
             { icon: '📋', label: '我的订单', href: '/orders' },
             { icon: '💬', label: '联系客服', href: '#' },
             { icon: 'ℹ️', label: '关于店铺', href: '#' },
           ].map((item, idx, arr) => (
-            <a
-              key={item.label}
-              href={item.href}
-              style={{
-                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                padding: '16px 20px',
-                borderBottom: idx < arr.length - 1 ? '1px solid #F3F4F6' : 'none',
-                textDecoration: 'none', color: '#10201A',
-              }}
-            >
+            <a key={item.label} href={item.href} style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+              padding: '16px 20px',
+              borderBottom: idx < arr.length - 1 ? '1px solid #F3F4F6' : 'none',
+              textDecoration: 'none', color: '#10201A',
+            }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                 <span style={{ fontSize: 20 }}>{item.icon}</span>
                 <span style={{ fontWeight: 600, fontSize: 15 }}>{item.label}</span>
@@ -140,7 +138,7 @@ export default function ProfilePage() {
         </div>
       </div>
 
-      <RechargeSheet isOpen={rechargeOpen} onClose={() => setRechargeOpen(false)} />
+      <RechargeSheet open={rechargeOpen} onClose={() => setRechargeOpen(false)} />
       <BottomNav />
     </div>
   );

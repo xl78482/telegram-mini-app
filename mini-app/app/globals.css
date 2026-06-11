@@ -1,40 +1,70 @@
+/* BUILD: 2026-06-11-v3 */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* ============================================
-   Telegram Mini App 全屏适配样式
-   ============================================ */
+/*
+ * ============================================
+ * Telegram Mini App 全屏布局样式
+ * 全局安全区策略：
+ *   requestFullscreen 模式下，页面主体罩盖到屏幕最顶部。
+ *   - --tg-safe-area-inset-top    = iOS 状态栏/灵动岛高度（Telegram JS 设置）
+ *   - --tg-content-safe-area-inset-top = 内容区顶部，包含控制按钒高度（Telegram JS 设置）
+ *   实际上我们需要的是 contentSafeAreaInset.top，它已包含关闭按钒高度
+ *   fallback：如果 Telegram 变量未注入，回退到 64px 保守处理
+ * ============================================
+ */
 
 :root {
-  --color-bg: #F6F6F8;
-  --color-primary: #32B579;
+  --color-bg:           #F6F6F8;
+  --color-primary:      #32B579;
   --color-primary-dark: #2EA66F;
-  --color-primary-light: #E8F7EE;
-  --color-text: #10201A;
-  --color-text-sub: #6B7C73;
-  --color-text-weak: #8A9690;
-  --color-white: #FFFFFF;
-  --color-border: #ECEEF0;
-  --radius-card: 24px;
-  --radius-btn: 999px;
-  --shadow-card: 0 2px 12px rgba(16,32,26,0.07);
+  --color-primary-light:#E8F7EE;
+  --color-text:         #10201A;
+  --color-text-sub:     #6B7C73;
+  --color-text-weak:    #8A9690;
+  --color-white:        #FFFFFF;
+  --color-border:       #ECEEF0;
+  --radius-card:        24px;
+  --radius-btn:         999px;
+  --shadow-card:        0 2px 12px rgba(16,32,26,0.07);
 
-  /* 全局安全区变量 — 兼容 Telegram 和 iOS 原生安全区 */
+  /*
+   * 安全区分两层：
+   *   --app-safe-top    : iOS 物理第一层，状态栏/灵动岛
+   *   --app-content-top : 状态栏 + Telegram 控制按钒区域，内容应该在这个值之下
+   *
+   * CSS 自定义属性初始值：0px
+   * Telegram JS 会在 documentElement 上设置这些 CSS 变量
+   * 我们用 max() 实现：取两者最大値，同时设定最小化 fallback
+   */
   --app-safe-top: max(
     env(safe-area-inset-top, 0px),
-    var(--tg-content-safe-area-inset-top, 0px),
     var(--tg-safe-area-inset-top, 0px)
   );
   --app-safe-bottom: max(
     env(safe-area-inset-bottom, 0px),
     var(--tg-safe-area-inset-bottom, 0px)
   );
-  /* 页面主体顶部需要颟外留出 8px 外边距 */
-  --app-content-top: max(var(--app-safe-top), 8px);
+
+  /*
+   * 页面内容顶部需要避开的总高度：
+   *   = contentSafeAreaInset.top（已包含关闭按钒 + 状态栏）
+   *   fallback: 如果 Telegram 未设置该变量，回退到 --app-safe-top + 52px
+   * 
+   * 注：requestFullscreen 模式下 contentSafeAreaInset.top 通常为 52~90px
+   */
+  --app-content-top: max(
+    var(--tg-content-safe-area-inset-top, 0px),
+    calc(var(--app-safe-top) + 52px)
+  );
+
+  /* 页面内容顶部颟外边距（内容圆角卡片等元素与内容边界间距） */
+  --page-padding-x: 16px;
+  --page-header-gap: 12px;
 }
 
-/* 重置，确保页面能平铺 */
+/* 重置 */
 *, *::before, *::after {
   box-sizing: border-box;
   -webkit-tap-highlight-color: transparent;
@@ -64,15 +94,13 @@ body {
 .tg-app {
   min-height: var(--tg-viewport-stable-height, 100dvh);
   background: var(--color-bg);
-  padding-left: max(0px, var(--tg-safe-area-inset-left, 0px));
-  padding-right: max(0px, var(--tg-safe-area-inset-right, 0px));
   position: relative;
 }
 
 /* 页面容器：预留底部导航空间 */
 .tg-page {
   min-height: var(--tg-viewport-stable-height, 100dvh);
-  padding-bottom: calc(96px + var(--app-safe-bottom));
+  padding-bottom: calc(80px + var(--app-safe-bottom));
 }
 
 /* 底部导航栏 */
@@ -97,14 +125,9 @@ body {
   padding-bottom: max(24px, var(--app-safe-bottom));
 }
 
-/* 页面内容顶部安全区—使用统一变量 */
+/* 兼容旧代码中的 tg-content-top 类 */
 .tg-content-top {
   padding-top: var(--app-content-top);
-}
-
-/* 首页/订单/我的 页面顶部安全区，颟外加一层 padding */
-.tg-page-top {
-  padding-top: calc(var(--app-content-top) + 8px);
 }
 
 /* ============================================
@@ -119,7 +142,7 @@ body {
 }
 
 /* ============================================
-   内建 UI 组件样式
+   内建 UI 组件
    ============================================ */
 
 .card {
@@ -170,8 +193,8 @@ body {
   border-radius: 8px;
 }
 
-/* 状态颜色 */
-.status-completed { background: #E8F7EE; color: #2EA66F; }
-.status-pending   { background: #FFF4E5; color: #F59E0B; }
+/* 状态颟色 */
+.status-completed  { background: #E8F7EE; color: #2EA66F; }
+.status-pending    { background: #FFF4E5; color: #F59E0B; }
 .status-processing { background: #EEF3FF; color: #4F74E8; }
-.status-cancelled { background: #F5F5F5; color: #8A9690; }
+.status-cancelled  { background: #F5F5F5; color: #8A9690; }
